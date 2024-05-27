@@ -1,5 +1,5 @@
 import os
-from telegram import Update,InlineKeyboardButton, InlineKeyboardMarkup,ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup,ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, ConversationHandler, MessageHandler, CallbackQueryHandler, filters
 from telegram._files.document import Document
 import logging
@@ -29,8 +29,8 @@ openai.api_base = 'https://api.perplexity.ai'
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-#change this token to change bot
-TOKEN = '7098210763:AAGcqaIofG1mE_KtZkEVGroOVJPK4Tnzoew'
+# KAIF
+TOKEN = '6119880672:AAGPBH_bjHYeeCs31tpk0vMNCVjvklzDtiI'
 
 dct_users = {}
 
@@ -43,20 +43,22 @@ dct_users = {}
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     args: list = context.args
     print(args)
+    # TODO put check if user is in leader or candidate
+    # send message accordingly
     if not args:
       #new session start here
       await update.message.reply_text(
-      "Welcome to Swissmote Bot, exclusively for Persist Venture! \n\n"
-      "I'm here to streamline your workflow with specialized functions:\n\n"
-      "For a simplified recruiting process(Assignment or Offer Letter), including automated sending assignments, message, invite, shortlist and hiring on Internshala, use the command: /automate_internshala. This will ensure a fully automated process, eliminating the need for manual intervention.\n\n"
-      "Connect with our Vision:  https://www.youtube.com/watch?v=itGNk0wellQ")
+      "Welcome to Swissmote Bot, exclusively for Persist Venture! 🎉" \
+      "I'm here to streamline your workflow with specialized functions:" \
+      "✨ For a simplified recruiting process (Assignment or Offer Letter), including automated sending assignments, messages, invites, shortlisting, and hiring on Internshala, use the command: /automate_internshala. This will ensure a fully automated process, eliminating the need for manual intervention." \
+      "🌟 Connect with our Vision:(https://www.youtube.com/watch?v=itGNk0wellQ) 🎥")
       
-      await automate_internshala(update,context)
+      # await automate_internshala(update,context)
       return
     
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
-    name = update.effective_chat.first_name 
+    name = update.effective_chat.first_name
     project: str = args[0]
     if project.startswith("xjfysbrv_"):
       #new Leader enters here using /start xjfysbrv_<project>
@@ -205,19 +207,17 @@ async def choose_listing_automate(update: Update, context: ContextTypes.DEFAULT_
     else:
       add = '🟢 represent an Active project on a Listing \nuse /all to get list of all active projects \n\n'
       add += message
-      if flag == 0:
-        await context.bot.send_message(chat_id=int(user_id), text=add, parse_mode='Markdown', reply_markup=reply_markup)
-        return
-      elif flag==1:
-        message += "🔢 Enter the Listing Number, Please!"
-        await context.bot.send_message(chat_id=int(user_id), text=add, parse_mode='Markdown', reply_markup=reply_markup)
-        await listing(update, context)
+      add += "🔢 Enter the Listing Number, Please!"
+      await context.bot.send_message(chat_id=int(user_id), text=add, parse_mode='Markdown', reply_markup=reply_markup)
+      await listing(update, context)
+      return
+        
     
 #Automate internshala command starts here
 async def automate_internshala(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
   user_id = update.effective_user.id
   if not search_leader(chat_id=user_id):
-    await update.message.reply_text('Only leaders can use this command')
+    await update.message.reply_text('🚨 Only leaders can use this command 🚨')
     return
   asyncio.create_task(background_automate_internshala(update, context))
   
@@ -226,23 +226,26 @@ async def automate_internshala_gift(update: Update, context: ContextTypes.DEFAUL
     
 #bg automation
 async def background_automate_internshala(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-
+  # TODO fix view listing and manage listing
     global dct_users
     user_id = update.effective_user.id
         
     await update.message.reply_text('Welcome to Fully Automated Funnel 🚀')
     dct_users[user_id] = {'project_name': False, 'listing': False, 'assignment': False, 'invite_message': False, 'intro_message': False, 'followup_2': False, 'followup_4': False, 'assignment_process': False, 'listing_num' : 0, 'invite_message_': False, 'intro_message_': False, 'reviewer':False}
     keyboard = [
-        [InlineKeyboardButton("Create Listing", callback_data=f'create_{user_id}')],
-        [InlineKeyboardButton("Choose Listing", callback_data=f'choose_{user_id}')],
-        [InlineKeyboardButton("View Listing", callback_data=f'view_{user_id}')],
+      [
+        InlineKeyboardButton("📝 Create New Listing", callback_data=f'create_{user_id}'),
+        InlineKeyboardButton("📋 View Listings", callback_data=f'view_{user_id}')
+      ],
+      [
+        InlineKeyboardButton("🔍 Choose Listing", callback_data=f'choose_{user_id}'),
+        InlineKeyboardButton("🛠️ Manage Listings", callback_data=f'manage_{user_id}')
+      ]
     ]
+
     #admin keyboard
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("""
-                                    Admin Dashboard 📃📊
-
-                                    """, reply_markup=reply_markup)
+    await update.message.reply_text("""Admin Dashboard 📃📊""", reply_markup=reply_markup)
 
 
 def save_details_in_file(listing, project_name, process = 'NA', invite = 'NA', intro = "NA", assignment = 'NA', followup2 = 'NA', followup4 = 'NA', status = 'Inactive', date = datetime.now().strftime("%Y-%m-%d"), followup2status = 'Inactive', followup4status = 'Inactive', file_path = 'listings\\intern_listing.csv'):
@@ -327,7 +330,7 @@ async def listing(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     dct_users[user_id]['followup_2'] = False
     dct_users[user_id]['followup_4'] = False
     dct_users[user_id]['reviewer'] = False
-    await context.bot.send_message(chat_id=int(user_id), text="🔢 Enter the Listing Number, Please!")
+    
 
 
 async def give_assignment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -914,8 +917,8 @@ async def background_execute_internshala_automation(update, context):
     listing_number = dct_users[user_id]['listing_num']
     del dct_users[user_id] 
     # FIND intershala_automation_start_api
-    success = await run_async_process_mk(['intershala_automation_start_api.py', str(listing_number)])
-    # success = True
+    # success = await run_async_process_mk(['intershala_automation_start_api.py', str(listing_number)])
+    success = True
     if not success:
         send_email(f" Error in internshala Automation!!", f"📧 Error: final_internshala_automation.py is failing for user: {user_id}" )
 
@@ -1035,8 +1038,12 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 asyncio.create_task(choose_listing_automate(update, context,1, Query_called[1], Query_called[2] ))
             
         else:
+          
             dct_users[user_id] = {'project_name': False, 'listing': False, 'assignment': False, 'invite_message': False, 'intro_message': False, 'followup_2': False, 'followup_4': False, 'assignment_process': False, 'listing_num' : 0, 'invite_message_': False, 'intro_message_': False, 'reviewer':False, 'announcement':False}
-
+            
+            if Query_called[0] == 'adminDashboard':
+              pass
+              
             if search_project(Query_called[0]):
               print("in")
               dct_users[user_id]['announcement'] = Query_called[0]
@@ -1063,8 +1070,8 @@ async def forever_checking_status():
                 if row['status'] == 'active':
                     print("found activeeeeeeeee")
                     # FIND intershala_automation_start_api
-                    success = await run_async_process_mk(['intershala_automation_start_api.py', str(row['listing'])])
-                    # success = True
+                    # success = await run_async_process_mk(['intershala_automation_start_api.py', str(row['listing'])])
+                    success = True
                     
                     if not success:
                         send_email("Fail","Fail forever")
@@ -1343,7 +1350,6 @@ async def ignore(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
   return ConversationHandler.END
 
-
 async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
   chat_id = update.effective_chat.id
   callback_data: dict = json.loads(update.callback_query.data)
@@ -1458,7 +1464,13 @@ async def check_updates(context: ContextTypes.DEFAULT_TYPE):
       update_candidate(candidate["chat_id"], datetime.now().timestamp(), counter, False)
   return
 
-       
+def make_folders(dir_names:list):
+  for name in dir_names:
+    try:
+      os.makedirs(name, exist_ok=True)
+    except Exception as e:
+      print(f'error occured while making directory {name}', e)
+
 def main():
     global main_event_loop
 
@@ -1472,6 +1484,14 @@ def main():
     app.add_handler(CommandHandler("admin", automate_internshala_gift))
     app.add_handler(CommandHandler("instructions", instructions))
     app.add_handler(CommandHandler("announcement", announcement))
+
+    # FIND
+    # app.add_handler(ConversationHandler(
+    #   entry_points=[CallbackQueryHandler(button)],
+    #   states={
+    #     0:[MessageHandler(filters.TEXT & filters.COMMAND, )]
+    #   }
+    # ))
 
     try:
       app.add_handler(ConversationHandler(
@@ -1506,9 +1526,10 @@ def main():
     app.add_handler(CallbackQueryHandler(button))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_name))
     print("Initializing update checks")
-    # TODO
-    app.job_queue.run_repeating(check_updates, 3600)
-    app.job_queue.run_repeating(run, 3600)
+
+    # TODO Uncomment
+    # app.job_queue.run_repeating(check_updates, 3600)
+    # app.job_queue.run_repeating(run, 3600)
 
     print("Polling...")
     main_event_loop = asyncio.get_event_loop()
@@ -1516,11 +1537,6 @@ def main():
     app.run_polling(allowed_updates=Update.ALL_TYPES)
     
 if __name__ == '__main__':
-    database.create_table()
-    folder_name = 'listings'
-    folder_name2 = 'offer_letters'
-    os.makedirs(folder_name, exist_ok=True)
-    os.makedirs(folder_name2, exist_ok=True)
-
+    make_folders(['listings', 'offer_letters'])
     main_loop = asyncio.run(main())
  

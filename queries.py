@@ -5,12 +5,38 @@ cx.row_factory = sqlite3.Row
 
 cx.executescript("""
 PRAGMA foreign_keys = ON;
-CREATE TABLE IF NOT EXISTS projects (name TEXT PRIMARY KEY, assignment TEXT);
-CREATE TABLE IF NOT EXISTS leaders (chat_id INTEGER, project_name TEXT, join_message INTEGER, UNIQUE(chat_id, project_name), FOREIGN KEY(project_name) REFERENCES projects(name) ON DELETE CASCADE);
-CREATE TABLE IF NOT EXISTS candidates (chat_id INTEGER PRIMARY KEY, project_name TEXT, 
-daily_update INTEGER, daily_counter INTEGER DEFAULT 0, daily_message BOOLEAN DEFAULT FALSE, valid BOOLEAN DEFAULT TRUE, 
-FOREIGN KEY(project_name) REFERENCES projects(name) ON DELETE CASCADE);
+CREATE TABLE IF NOT EXISTS projects (
+  listing INTEGER,
+  name TEXT PRIMARY KEY,
+  assignment TEXT,
+  process TEXT DEFAULT NULL,
+  date DATE DEFAULT NULL,
+  invite TEXT DEFAULT NULL,
+  intro TEXT DEFAULT NULL,
+  followup2 TEXT DEFAULT NULL,
+  followup4 TEXT DEFAULT NULL,
+  status TEXT DEFAULT "INACTIVE",
+  followup2status TEXT DEFAULT "INACTIVE",
+  followup4status TEXT DEFAULT "INACTIVE");
+  
+CREATE TABLE IF NOT EXISTS leaders (
+  chat_id INTEGER,
+  project_name TEXT,
+  join_message INTEGER,
+  UNIQUE(chat_id, project_name),
+  FOREIGN KEY(project_name) REFERENCES projects(name) ON DELETE CASCADE);
+
+CREATE TABLE IF NOT EXISTS candidates (
+  chat_id INTEGER PRIMARY KEY,
+  project_name TEXT,
+  daily_update INTEGER,
+  daily_counter INTEGER DEFAULT 0,
+  daily_message BOOLEAN DEFAULT FALSE,
+  valid BOOLEAN DEFAULT TRUE, 
+  FOREIGN KEY(project_name) REFERENCES projects(name) ON DELETE CASCADE);
 """)
+
+
 cx.commit()
 
 def add_project(project: str, assignment: str) -> bool:
