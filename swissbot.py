@@ -963,68 +963,89 @@ def send_email(subject, body, sender_email = 'your mail', receiver_email = 'your
 
        
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    global dct_users
+  global dct_users
+  try:
+    query = update.callback_query
+    print("\n\n\n", query, "\n\n\n")
+    Query_called = query.data.strip().split("_")
+    print(Query_called[0])
+    user_id = query.from_user.id
+        
+    print(query.data)
+    print('🟥'*3)
+    # Check for reply callback data
     try:
-        query = update.callback_query
-        print("\n\n\n",query,"\n\n\n")
-        # message = query.message  
-        Query_called = query.data.strip().split("_")
-        print(Query_called[0])
-        user_id = query.from_user.id
-        # buttons available while choosing listing
-        if user_id in dct_users:           
-            if Query_called[0] == 'assignment':
-                await query.edit_message_text(text="✅ Assignment process...")
-                dct_users[user_id]['assignment_process'] = True
-                asyncio.create_task(invite_message(update, context))
-
-            elif Query_called[0] == 'offerletter':
-                await query.edit_message_text(text="✅ Offer letter process...")
-                dct_users[user_id]['assignment_process'] = False
-                asyncio.create_task(invite_message(update, context))
-
-            elif Query_called[0] == 'create':
-                await query.edit_message_text(text="🔧 Currently in Testing phase. Will be Live soon.")
-
-            elif Query_called[0] == 'choose':
-                keyboard = [
-                    [InlineKeyboardButton("Internship", callback_data=f'emp_itn_{user_id}'),
-                    InlineKeyboardButton("Jobs", callback_data=f'emp_job_{user_id}')]
-                ]
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                await query.edit_message_text(text="👉 Proceed to choose an existing listing.", reply_markup=reply_markup)
-
-            elif Query_called[0] == 'view':
-                await query.edit_message_text(text="👉 Proceed to view the listings.")
-                asyncio.create_task(choose_listing_automate(update, context,0))
-
-            elif Query_called[0] == 'emp' and Query_called[1] == 'itn':
-                asyncio.create_task(choose_listing_automate(update, context,1, 1, "internship" ))
-                return 0
-                
-            elif Query_called[0] == 'emp' and Query_called[1] == 'job':
-                asyncio.create_task(choose_listing_automate(update, context,1, 1, "job" ))
-                return 0
-                
-            elif Query_called[0] == 'next':
-                asyncio.create_task(choose_listing_automate(update, context,1, Query_called[1], Query_called[2] ))
-            
-        # buttons after done with choosing listing
-        else:
-          if Query_called[0] == 'announce':
-            print('project mk: ')
-            print(Query_called[1])
-            await context.bot.send_message(chat_id=user_id, text=f"Write announcement for {Query_called[1]}" )
-            await get_announcement(update, context, Query_called[2])
-            
-          if Query_called[0] == 'adminDashboard':
-              pass
-              
+      callback_data = json.loads(query.data)
+      context.user_data["callback_data"] = callback_data
     except:
-        traceback.print_exc()
-        await context.bot.send_message(update.effective_user.id,f"❌ Operation compromised. Please try again.")
-        return
-    
+      print('callback not in json format')
+    # FIND REPLY
+    if callback_data["t"] == "d":
+      context.user_data["reply"] = "Daily"
+      await context.bot.send_message(chat_id=user_id, text="📝 Enter reply to the daily message:")
+
+    elif callback_data["t"] == "q":
+      context.user_data["reply"] = "Question"
+      context.user_data["callback_data"]["m"].append(update.effective_message.id)
+      await context.bot.send_message(chat_id=user_id, text="📝 Enter reply to the question:")
+
+    elif callback_data["t"] == "as":
+      context.user_data["reply"] = "Assignment"
+      await context.bot.send_message(chat_id=user_id, text="📝 Enter reply to the assignment:")
+
+    elif callback_data["t"] == "an":
+      context.user_data["reply"] = "Announce"
+      context.user_data["project"] = callback_data["p"]
+      await context.bot.send_message(chat_id=user_id, text="Start typing the announcement:")
+
+    # Handle other query actions
+    if user_id in dct_users:           
+      if Query_called[0] == 'assignment':
+        await query.edit_message_text(text="✅ Assignment process...")
+        dct_users[user_id]['assignment_process'] = True
+        asyncio.create_task(invite_message(update, context))
+
+      elif Query_called[0] == 'offerletter':
+        await query.edit_message_text(text="✅ Offer letter process...")
+        dct_users[user_id]['assignment_process'] = False
+        asyncio.create_task(invite_message(update, context))
+
+      elif Query_called[0] == 'create':
+        await query.edit_message_text(text="🔧 Currently in Testing phase. Will be Live soon.")
+
+      elif Query_called[0] == 'choose':
+        keyboard = [
+          [InlineKeyboardButton("Internship", callback_data=f'emp_itn_{user_id}'),
+          InlineKeyboardButton("Jobs", callback_data=f'emp_job_{user_id}')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text="👉 Proceed to choose an existing listing.", reply_markup=reply_markup)
+
+      elif Query_called[0] == 'view':
+        await query.edit_message_text(text="👉 Proceed to view the listings.")
+        asyncio.create_task(choose_listing_automate(update, context, 0))
+
+      elif Query_called[0] == 'emp' and Query_called[1] == 'itn':
+        asyncio.create_task(choose_listing_automate(update, context, 1, 1, "internship"))
+        return 0
+                
+      elif Query_called[0] == 'emp' and Query_called[1] == 'job':
+        asyncio.create_task(choose_listing_automate(update, context, 1, 1, "job"))
+        return 0
+                
+      elif Query_called[0] == 'next':
+        asyncio.create_task(choose_listing_automate(update, context, 1, Query_called[1], Query_called[2]))
+            
+      else:
+        if Query_called[0] == 'announce':
+          print('project mk: ')
+          print(Query_called[1])
+          await context.bot.send_message(chat_id=user_id, text=f"Write announcement for {Query_called[1]}")
+          await get_announcement(update, context, Query_called[2]) 
+  except Exception as e:
+    traceback.print_exc()
+    await context.bot.send_message(update.effective_user.id, f"❌ Operation compromised. Please try again.")
+    return
     
 def days_between(d1, d2):
     d1 = datetime.strptime(d1, "%Y-%m-%d")
@@ -1140,7 +1161,7 @@ async def announcement(update: Update, context: ContextTypes.DEFAULT_TYPE):
   if projects:
     reply_markup=[]
     for p in projects:
-      reply_markup.append([InlineKeyboardButton(p["project_name"], callback_data=f"announce_{p['project_name']}_{chat_id}")])
+      reply_markup.append([InlineKeyboardButton(p["project_name"], callback_data=json.dumps({"t": "an", "p": p["project_name"]}))])
     await context.bot.send_message(chat_id=chat_id, text=f"Select a project to announce in", 
     reply_markup = InlineKeyboardMarkup(reply_markup))
     cursor.close()
@@ -1370,6 +1391,8 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=chat_id, text="Start typing the announcement:")
 
 async def reply_done(update: Update, context: ContextTypes.DEFAULT_TYPE):
+  print('inside reply done')
+  print('📞'*3)
   if not context.user_data.get("callback_data"): 
     user_id = update.effective_user.id
     user_name = update.effective_chat.first_name
@@ -1521,6 +1544,7 @@ def main():
 
     app.add_handler(CallbackQueryHandler(button))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_name))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, reply_done))
     
     print("Initializing update checks")
 
