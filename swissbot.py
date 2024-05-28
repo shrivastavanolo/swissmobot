@@ -1,3 +1,4 @@
+from time import sleep
 import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup,ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, ConversationHandler, MessageHandler, CallbackQueryHandler, filters
@@ -17,9 +18,10 @@ from queries import cx
 from queries import add_project, remove_project, search_project
 from queries import add_leader, search_leader, get_leaders, update_leader
 from queries import add_candidate, search_candidate, get_candidates, update_candidate, get_candidate_count
+from queries import query_get_many, update_project, query_update, query_get_one
 import form
 import sys
-import database
+from intershala_automation_start_api import get_all_shortlisted_applicants, send_message_using_id
 ######### To do: Set your email at line 870 in function 'send_email' ############
 
 # APIs and tokens
@@ -39,7 +41,7 @@ dct_users = {}
 #### /start dewdrop_<project> for assignment candidates
 #### /start rcbwin_<project> for offerletter candidates
 
-#start function 
+#start function
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     args: list = context.args
     print(args)
@@ -52,9 +54,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
       "I'm here to streamline your workflow with specialized functions:" \
       "✨ For a simplified recruiting process (Assignment or Offer Letter), including automated sending assignments, messages, invites, shortlisting, and hiring on Internshala, use the command: /automate_internshala. This will ensure a fully automated process, eliminating the need for manual intervention." \
       "🌟 Connect with our Vision:(https://www.youtube.com/watch?v=itGNk0wellQ) 🎥")
-      
-      # await automate_internshala(update,context)
-      return
+      # return
     
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
@@ -80,7 +80,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         message = f"🎉 Hello {name}! Welcome to SwissmoteBot," + "\n" + \
         "you are already a leader for this project."
         await update.message.reply_text(message, reply_markup=leader_deafult_keyboard)
-        return
+        # return
+      
     print(project.split("_")[1])
     #if project doesnt exist
     project_details = search_project(project.split("_")[1])
@@ -88,10 +89,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
       await update.message.reply_text("Invalid argument!")
       return
     
-    # candidate = add_candidate(chat_id, project, datetime.now().timestamp())
-    # print('CANDY 🍬')
-    # print(user_id, project, datetime.now().timestamp())
-
     candidate = add_candidate(user_id, project.split("_")[1], int(datetime.now().timestamp()))
     
     #if candidate already belongs to another project (can't have 2 projects at the same time)
@@ -99,6 +96,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
       message = f"🎉 Hello {name}! Welcome to SwissmoteBot," + "\n" + \
       "you are already a candidate for another project. Use /instructions to know more."
       return
+    
     message = "🎉 Welcome to SwissmoteBot! I'm a bot designed by Systemic Altruism to keep you updated on the Hiring Process🚀" + "\n" + \
       "Congratulations on being shortlisted! 🌟 To be hired with a PPO, here’s what you need to do:" + "\n" + \
       "1. 📈 Share your daily updates and progress with me." + "\n" + \
@@ -117,15 +115,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
       #offer letter candidate
       await context.bot.send_message(chat_id=chat_id, text="⏳ Please wait while we process your offer letter... 📝")
       try:
-        print('start')
         full_name=f"{update.effective_chat.first_name } {update.effective_chat.last_name}"
         
         project_split = project.split('_')[1]
-        # form.pdf_top(full_name,"Persist Ventures",f"{project_split} intern",project_details["assignment"],f"https://telegram.me/heytohbot?start=rcbwin_{dct_users[user_id]['project_name_']}",f"{full_name}_{project_split}_offerletter.pdf")
         
         await update.message.reply_text(project_details["assignment"], reply_markup=candidate_deafult_keyboard)
         try:
-          print('form')
           form.pdf_top(name=full_name,
                       filepath=f"offer_letters/{full_name}_{project_split}_offerletter.pdf"
                     )
@@ -171,36 +166,42 @@ async def choose_listing_automate(update: Update, context: ContextTypes.DEFAULT_
         return
     else:
         await update.callback_query.edit_message_text(text=f"Page: {page_num} 📄" )
-        # await context.bot.send_message(chat_id=int(user_id), text=f"Success! ✅")
     
-    if emp_type == 'internship':       
+    if emp_type == 'internship':   
         file_path = "internship_details.txt"
         
     elif emp_type == 'job' :
         file_path = 'job_details.txt'
         
     message = ""
-    active_projects = await database.get_all_active_projects()
+    active_projects = query_get_many('''
+                                     SELECT listing
+                                     FROM projects
+                                     WHERE status = 1
+                                    ''')
     active_listing = []
     for project in active_projects:
-        active_listing.append(str(project[0]))
-    
+      for listing_num in project:
+        active_listing.append(listing_num)
+
+    # print(active_listing)
     with open(file_path, 'r') as file:
       for line in file:
         split_line = line.split('___')
         count = split_line[0]
         name = split_line[1]
-        package = split_line[3]         
-
+        package = split_line[3]
+        # print(split_line[2], active_listing, split_line[2] in active_listing)      
+        # sleep(1)  
         if 'None' in package:
           message = message + f"{count}. {name}\n\n"
         else:
-          if split_line[2] in active_listing:
+          if int(split_line[2]) in active_listing:
             print('ACTIVE ' , '🟢'*7)
             message = message + f"{count}. {name} 🟢 \n{package}\n"
-            active_listing.remove(split_line[2])
+            active_listing.remove(int(split_line[2]))
           else:
-            message = message + f"{count}. {name} \n{package}\n"
+            message = message + f"{count}. {name}  \n{package}\n"
                     
     if message == "":
       await update.callback_query.edit_message_text(text="That's All ✅", parse_mode='Markdown')
@@ -231,6 +232,7 @@ async def background_automate_internshala(update: Update, context: ContextTypes.
     user_id = update.effective_user.id
         
     await update.message.reply_text('Welcome to Fully Automated Funnel 🚀')
+    # FIND initial dct_users
     dct_users[user_id] = {'project_name': False, 'listing': False, 'assignment': False, 'invite_message': False, 'intro_message': False, 'followup_2': False, 'followup_4': False, 'assignment_process': False, 'listing_num' : 0, 'invite_message_': False, 'intro_message_': False, 'reviewer':False}
     keyboard = [
       [
@@ -247,64 +249,6 @@ async def background_automate_internshala(update: Update, context: ContextTypes.
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("""Admin Dashboard 📃📊""", reply_markup=reply_markup)
 
-
-def save_details_in_file(listing, project_name, process = 'NA', invite = 'NA', intro = "NA", assignment = 'NA', followup2 = 'NA', followup4 = 'NA', status = 'Inactive', date = datetime.now().strftime("%Y-%m-%d"), followup2status = 'Inactive', followup4status = 'Inactive', file_path = 'listings\\intern_listing.csv'):
-    # Check if the csv file exists, if not, create it and add headers
-    try:
-        try:
-            with open(file_path, 'x', newline='', encoding='utf-8') as file:
-                writer = csv.writer(file)
-                # messages, intern status, date, day2 status, day3 status, day4 status, leader_id , process_type
-                writer.writerow(['listing', 'projectname', 'process', 'invite', 'intro', 'assignment', 'followup2', 'followup4', 'status', 'date', 'followup2status', 'followup4status'])
-        except FileExistsError:
-            pass 
-
-        # Append the data to the CSV
-        with open(file_path, 'a', newline='', encoding='utf-8') as file:
-            writer = csv.writer(file)
-            writer.writerow([listing, project_name, process, invite, intro, assignment, followup2, followup4, status, date, followup2status, followup4status])
-    except:
-        traceback.print_exc()
-        pass
-
-
-async def update_details_in_file(listing, project_name = None, process=None, invite=None, assignment=None, followup2=None, followup4=None, status=None, date = None, followup2status=None, followup4status=None, file_path = 'listings\\intern_listing.csv'):
-    try:
-        data = []
-        with open(file_path, mode='r', newline='', encoding='utf-8') as infile:
-            reader = csv.DictReader(infile)
-            for row in reader:
-                if row['listing'] == str(listing):
-                    if process is not None:
-                        row['process'] = str(process)
-                    if invite is not None:
-                        row['invite'] = str(invite)
-                    if assignment is not None:
-                        row['assignment'] = str(assignment)
-                    if followup2 is not None:
-                        row['followup2'] = str(followup2)
-                    if followup4 is not None:
-                        row['followup4'] = str(followup4)
-                    if status is not None:
-                        row['status'] = str(status)
-                    if date is not None:
-                        row['date'] = date
-                    if project_name is not None:
-                        row['projectname'] = project_name
-                    if followup2status is not None:
-                        row['followup2status'] = str(followup2status)
-                    if followup4status is not None:
-                        row['followup4status'] = str(followup4status)
-                data.append(row)
-        with open(file_path, mode='w', newline='', encoding='utf-8') as outfile:
-            fieldnames = ['listing','projectname', 'process', 'invite', 'intro', 'assignment', 'followup2', 'followup4', 'status', 'date', 'followup2status', 'followup4status']
-            writer = csv.DictWriter(outfile, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(data)
-    except Exception as e:
-        traceback.print_exc()
-    
-
 async def project_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     global dct_users
     user_id = update.effective_chat.id
@@ -320,6 +264,8 @@ async def project_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 async def listing(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+  # print('inside listing...')
+    
     global dct_users
     user_id = update.effective_chat.id
     dct_users[user_id]['project_name'] = False
@@ -345,24 +291,22 @@ async def give_assignment(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     dct_users[user_id]['followup_4'] = False
     dct_users[user_id]['reviewer'] = False
     if dct_users[user_id]['assignment_process'] == True:
-# A Swissmote link : https://telegram.me/heytohbot?start=dewdrop_{dct_users[user_id]['project_name_']}
         message= f"""
 📝 Assignment Submission
 Please provide your assignment. Make sure it includes:
 
 A link to the assignment 🖇️
 A Loom video 📹
-A Swissmote link : https://t.me/swissmotepvbot?start=dewdrop_{dct_users[user_id]['project_name_']}
+A Swissmote link : https://t.me/testing_oo7_bot?start=dewdrop_{dct_users[user_id]['project_name_']}
 
 Suggestions? Use /suggestion."""
         await context.bot.send_message(chat_id=int(user_id), text=message)
     else:
-# Keep Swissmote.0 link : https://telegram.me/heytohbot?start=rcbwin_{dct_users[user_id]['project_name_']}
         message= f"""
 📝 Hired Message
 Please enter the hired message as per the offer letter process.
 
-Keep Swissmote.0 link : https://t.me/swissmotepvbot?start=rcbwin_{dct_users[user_id]['project_name_']}
+Keep Swissmote.0 link : https://t.me/testing_oo7_bot?start=rcbwin_{dct_users[user_id]['project_name_']}
 
 Suggestions? Use /suggestion."""
         await context.bot.send_message(chat_id=int(user_id), text=message)
@@ -425,18 +369,20 @@ async def followup_2(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     dct_users[user_id]['followup_4'] = False
     dct_users[user_id]['reviewer'] = False
     if dct_users[user_id]['assignment_process'] == True:
-        await context.bot.send_message(chat_id=int(user_id), text="""
+      
+      await context.bot.send_message(chat_id=int(user_id), text="""
 📝 *Follow-Up for Day 2*
 Enter the follow-up message for Day 2 after sending the assignment.
 
 To skip, use */skip*. For suggestions, use */suggestion*.""", parse_mode='Markdown')
     
     else:
-        await context.bot.send_message(chat_id=int(user_id), text="""
+      await context.bot.send_message(chat_id=int(user_id), text="""
 📝 *Follow-Up for Day 2*
 Enter the follow-up message for Day 2.
 
 To skip, use */skip*. For suggestions, use */suggestion*.""", parse_mode='Markdown')
+  
     
     
 async def followup_4(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -495,24 +441,22 @@ To *skip*, use */skip*. For *suggestions*, use */suggestion*.""", parse_mode='Ma
                 dct_users[user_id]['intro_message'] = False
                 dct_users[user_id]['assignment'] = True
                 if dct_users[user_id]['assignment_process'] == True:
-# - Swissmote2.0 link : https://telegram.me/heytohbot?start=dewdrop_{dct_users[user_id]['project_name_']}
                   await context.bot.send_message(chat_id=int(user_id), text=f"""
 📝 *Assignment Submission*
 Please provide your assignment. Make sure it includes:
 
 - link to the assignment 🖇️
 - Loom video 📹
-- Swissmote2.0 link : https://t.me/swissmotepvbot?start=dewdrop_{dct_users[user_id]['project_name_']}
+- Swissmote2.0 link : https://t.me/testing_oo7_bot?start=dewdrop_{dct_users[user_id]['project_name_']}
 
 *Suggestions?* Use /suggestion."""
 , parse_mode='Markdown')
                 else:
-# Keep Swissmote.0 link : https://telegram.me/heytohbot?start=rcbwin_{dct_users[user_id]['project_name_']}
                    await context.bot.send_message(chat_id=int(user_id), text=f"""
 📝 *Hired Message*
 Please enter the hired message as per the offer letter process.
 
-Keep Swissmote.0 link : https://t.me/swissmotepvbot?start=rcbwin_{dct_users[user_id]['project_name_']}
+Keep Swissmote.0 link : https://t.me/testing_oo7_bot?start=rcbwin_{dct_users[user_id]['project_name_']}
 
 *Suggestions?* Use */suggestion*.""", parse_mode='Markdown')            
                   
@@ -535,8 +479,7 @@ Enter the follow-up message for Day 4.
 To skip, use */skip*. For suggestions, use */suggestion*.""", parse_mode='Markdown')          
         elif dct_users[user_id]['followup_4'] == True:
             dct_users[user_id]['followup_4'] = False
-            # await context.bot.send_message(chat_id=int(user_id), text=f"""Leader need to join from this link: https://telegram.me/heytohbot?start=xjfysbrv_{dct_users[user_id]['project_name_']}""")
-            await context.bot.send_message(chat_id=int(user_id), text=f"""Leader need to join from this link: https://t.me/swissmotepvbot?start=xjfysbrv_{dct_users[user_id]['project_name_']}""")
+            await context.bot.send_message(chat_id=int(user_id), text=f"""Leader need to join from this link: https://t.me/testing_oo7_bot?start=xjfysbrv_{dct_users[user_id]['project_name_']}""")
           
             asyncio.create_task(execute_internshala_automation(update, context))
     except:
@@ -768,6 +711,10 @@ async def background_handle_name(update: Update, context: ContextTypes.DEFAULT_T
 
         elif dct_users[user_id]['project_name'] == True:
             sanitized_message = re.sub(r'\W+', '', message)
+            search_result = query_get_one('''SELECT name FROM projects where name = ?''', [sanitized_message])
+            if search_result:
+              await update.message.reply_text(text='Already have a project with same name, \ntry some other name')
+              return
             dct_users[user_id]['project_name_'] = sanitized_message
             dct_users[user_id]['project_name'] = False
             keyboard = [
@@ -781,8 +728,8 @@ async def background_handle_name(update: Update, context: ContextTypes.DEFAULT_T
             
         elif dct_users[user_id]['listing'] == True:
             try:
-                file_path = 'internship_details.txt'
-                # message = ""
+                emp_type =  dct_users[user_id]['emp_type']
+                file_path = f'{emp_type}_details.txt'
                 listing_num = ''
                 try:
                     message = int(message)
@@ -794,27 +741,41 @@ async def background_handle_name(update: Update, context: ContextTypes.DEFAULT_T
                         count = line.split('___')[0]
                         if str(count) == str(message):
                             listing_num = line.split('___')[2]
+                            
+                search_result = query_get_one('''SELECT listing, name FROM projects WHERE listing = ?''', [listing_num])
+                if search_result != None:
+                  keyboard = [
+                        [InlineKeyboardButton("Return to Listings", callback_data=f'restart_{user_id}'),
+                        InlineKeyboardButton("Continue", callback_data=f'continue_{user_id}')]
+                    ]
+                  active_project = search_result
+                  print(active_project)
+                  reply_markup = InlineKeyboardMarkup(keyboard)
+                  await context.bot.send_message(chat_id=user_id, text=f'Already active project 🟢 \nwith this listing \nProject Name: {active_project} \nReturn to Listing will abort this request and Continuing would remove the last project', reply_markup=reply_markup)
+                    
                 dct_users[user_id]['listing_num'] = int(listing_num)
-                # save_details_in_file(message)
                 dct_users[user_id]['listing'] = False
                 await project_name(update, context)
             except:
                 traceback.print_exc()
+                
         elif dct_users[user_id]['assignment'] == True:
             try:
                 if dct_users[user_id]['assignment_process'] == True:
                     process_ = 'assignment'
                 else:
                     process_ = 'offer'
-                if dct_users[user_id]['invite_message_']==False and dct_users[user_id]['intro_message_']!=False:
-                    save_details_in_file(listing=dct_users[user_id]['listing_num'], project_name = dct_users[user_id]['project_name_'], intro = dct_users[user_id]['intro_message_'], assignment = message, date=datetime.now().strftime("%Y-%m-%d"), status='active', process=process_)
-                elif dct_users[user_id]['invite_message_']!=False and dct_users[user_id]['intro_message_']==False:
-                    save_details_in_file(listing=dct_users[user_id]['listing_num'], project_name = dct_users[user_id]['project_name_'], invite = dct_users[user_id]['invite_message_'], assignment = message, date=datetime.now().strftime("%Y-%m-%d"), status='active', process=process_)
-                elif dct_users[user_id]['invite_message_']==False and dct_users[user_id]['intro_message_']==False:
-                    save_details_in_file(listing=dct_users[user_id]['listing_num'], project_name = dct_users[user_id]['project_name_'], assignment = message, date=datetime.now().strftime("%Y-%m-%d"), status='active', process=process_)
-                else:
-                    save_details_in_file(listing=dct_users[user_id]['listing_num'], project_name = dct_users[user_id]['project_name_'], invite = dct_users[user_id]['invite_message_'], intro = dct_users[user_id]['intro_message_'], assignment = message, date=datetime.now().strftime("%Y-%m-%d"), status='active', process=process_)
-                add_project(dct_users[user_id]['project_name_'],message)
+                # if dct_users[user_id]['invite_message_']==False and dct_users[user_id]['intro_message_']!=False:
+                #     save_details_in_file(listing=dct_users[user_id]['listing_num'], project_name = dct_users[user_id]['project_name_'], intro = dct_users[user_id]['intro_message_'], assignment = message, date=datetime.now().strftime("%Y-%m-%d"), status='active', process=process_)
+                # elif dct_users[user_id]['invite_message_']!=False and dct_users[user_id]['intro_message_']==False:
+                #     save_details_in_file(listing=dct_users[user_id]['listing_num'], project_name = dct_users[user_id]['project_name_'], invite = dct_users[user_id]['invite_message_'], assignment = message, date=datetime.now().strftime("%Y-%m-%d"), status='active', process=process_)
+                # elif dct_users[user_id]['invite_message_']==False and dct_users[user_id]['intro_message_']==False:
+                #     save_details_in_file(listing=dct_users[user_id]['listing_num'], project_name = dct_users[user_id]['project_name_'], assignment = message, date=datetime.now().strftime("%Y-%m-%d"), status='active', process=process_)
+                # else:
+                #     save_details_in_file(listing=dct_users[user_id]['listing_num'], project_name = dct_users[user_id]['project_name_'], invite = dct_users[user_id]['invite_message_'], intro = dct_users[user_id]['intro_message_'], assignment = message, date=datetime.now().strftime("%Y-%m-%d"), status='active', process=process_)
+                    
+                add_project(listing=dct_users[user_id]['listing_num'], name = dct_users[user_id]['project_name_'], invite = dct_users[user_id]['invite_message_'], intro = dct_users[user_id]['intro_message_'], assignment = message, date=datetime.now().strftime("%Y-%m-%d"), status=1, process=process_)
+                
                 await followup_2(update, context)
             except:
                 traceback.print_exc()
@@ -831,13 +792,17 @@ async def background_handle_name(update: Update, context: ContextTypes.DEFAULT_T
             except:
                 traceback.print_exc()
         elif dct_users[user_id]['followup_2'] == True:
-            await update_details_in_file(listing=dct_users[user_id]['listing_num'], followup2=message)
-            await followup_4(update, context)
+            # await update_details_in_file(listing=dct_users[user_id]['listing_num'], followup2=message)
+          query_update('''UPDATE projects
+            SET followup2 = ?, followup2status = ? 
+            WHERE name = ?''', [message, 0, dct_users[user_id]['project_name_']])
+          await followup_4(update, context)
         elif dct_users[user_id]['followup_4'] == True:
             try:
-                await update_details_in_file(listing=dct_users[user_id]['listing_num'], followup4=message)
-                # await context.bot.send_message(chat_id=int(user_id), text=f"""Leaders need to join from this link: https://telegram.me/heytohbot?start=xjfysbrv_{dct_users[user_id]['project_name_']}""")
-                await context.bot.send_message(chat_id=int(user_id), text=f"""Leaders need to join from this link: https://t.me/swissmotepvbot?start=xjfysbrv_{dct_users[user_id]['project_name_']}""")
+                query_update('''UPDATE projects
+                SET followup4 = ?, followup4status = ? 
+                WHERE name = ?''', [message, 0, dct_users[user_id]['project_name_']])
+                await context.bot.send_message(chat_id=int(user_id), text=f"""Leaders need to join from this link: https://t.me/testing_oo7_bot?start=xjfysbrv_{dct_users[user_id]['project_name_']}""")
                 asyncio.create_task(execute_internshala_automation(update, context))
             except:
                 pass
@@ -915,7 +880,11 @@ async def background_execute_internshala_automation(update, context):
     global dct_users
     user_id = update.effective_user.id    
     listing_number = dct_users[user_id]['listing_num']
-    del dct_users[user_id] 
+    del dct_users[user_id]
+    
+    print('background_execute_internshala_automation')
+    print(len(dct_users))
+    print(dct_users)
     # FIND intershala_automation_start_api
     # success = await run_async_process_mk(['intershala_automation_start_api.py', str(listing_number)])
     success = True
@@ -1002,6 +971,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         Query_called = query.data.strip().split("_")
         print(Query_called[0])
         user_id = query.from_user.id
+        # buttons available while choosing listing
         if user_id in dct_users:           
             if Query_called[0] == 'assignment':
                 await query.edit_message_text(text="✅ Assignment process...")
@@ -1030,24 +1000,25 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
             elif Query_called[0] == 'emp' and Query_called[1] == 'itn':
                 asyncio.create_task(choose_listing_automate(update, context,1, 1, "internship" ))
+                return 0
                 
             elif Query_called[0] == 'emp' and Query_called[1] == 'job':
                 asyncio.create_task(choose_listing_automate(update, context,1, 1, "job" ))
+                return 0
                 
             elif Query_called[0] == 'next':
                 asyncio.create_task(choose_listing_automate(update, context,1, Query_called[1], Query_called[2] ))
             
+        # buttons after done with choosing listing
         else:
-          
-            dct_users[user_id] = {'project_name': False, 'listing': False, 'assignment': False, 'invite_message': False, 'intro_message': False, 'followup_2': False, 'followup_4': False, 'assignment_process': False, 'listing_num' : 0, 'invite_message_': False, 'intro_message_': False, 'reviewer':False, 'announcement':False}
+          if Query_called[0] == 'announce':
+            print('project mk: ')
+            print(Query_called[1])
+            await context.bot.send_message(chat_id=user_id, text=f"Write announcement for {Query_called[1]}" )
+            await get_announcement(update, context, Query_called[2])
             
-            if Query_called[0] == 'adminDashboard':
+          if Query_called[0] == 'adminDashboard':
               pass
-              
-            if search_project(Query_called[0]):
-              print("in")
-              dct_users[user_id]['announcement'] = Query_called[0]
-              await query.edit_message_text(text="👉 Proceed to type the announcement.")
               
     except:
         traceback.print_exc()
@@ -1061,48 +1032,65 @@ def days_between(d1, d2):
     return abs((d2 - d1).days)
 
 
-async def forever_checking_status():
-    while True:
-        print("we here")
-        with open('listings/intern_listing.csv', mode='r', newline='', encoding='utf-8') as infile:
-            reader = csv.DictReader(infile)
-            for row in reader:
-                if row['status'] == 'active':
-                    print("found activeeeeeeeee")
-                    # FIND intershala_automation_start_api
-                    # success = await run_async_process_mk(['intershala_automation_start_api.py', str(row['listing'])])
-                    success = True
-                    
-                    if not success:
-                        send_email("Fail","Fail forever")
-                        
-                    curr_date = datetime.now().strftime("%Y-%m-%d")
-                    if days_between(curr_date, row['date']) == 2 and row['followup2status'] == 'Inactive' and row['followup2'] != 'NA':
-                        # success = await run_async_process(['python', 'send_message_shotlist.py', str(row['listing']), "2"])
-                        success = await run_async_process_mk(['send_message_shotlist.py', str(row['listing']), "2"])
-                        if not success:
-                            send_email("Fail","Fail forever")
-                            
-                        await update_details_in_file(listing=row['listing'], followup2status='Active')
-                        ## run script
-                        ## update sattus of day 2
-                        pass
-                    if days_between(curr_date, row['date']) == 4 and row['followup4status'] == 'Inactive' and row['followup2'] != 'NA':
-                        # success = await run_async_process(['python', 'send_message_shotlist.py', str(row['listing']), "4"])
-                        success = await run_async_process_mk(['send_message_shotlist.py', str(row['listing']), "4"])
-                        if not success:
-                            send_email("Fail follow 4","Fail forever")
-                            
-                        await update_details_in_file(listing=row['listing'], followup4status='Active')
-                        ## run script
-                        ## update sattus of day 4
-                        pass
+async def forever_checking_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
+  user_id = update.effective_user.id
+  while True:
+    print("we here")
+    # ALL ACTIVE projects ACTIVE => status = 1
+    all_projects = query_get_many('''SELECT * FROM projects WHERE status = 1''')
+    # print(len(all_projects))
+    if not all_projects:
+      await context.bot.send_message(chat_id=user_id, text='No listings found')
+      print("Add some listings....")
+      return
+    
+    curr_date = datetime.now().strftime("%Y-%m-%d")
+    for project in all_projects:
+      # FIND intershala_automation_start_api
+      # success = await run_async_process_mk(['intershala_automation_start_api.py', str(row['listing'])])
+      success = True
+      if not success:
+        send_email("Fail","Fail forever")
+        return
 
-        await asyncio.sleep(14400)  # 4 hours in seconds
+      if project['followup2'] == '' and  project['followup4'] == '':
+        continue
+      if project['followup2status'] == 1 and project['followup4status'] == 1:
+        continue
+      
+      # print('success', success)
+      # project['followup2'], project['followup2status'], project['followup4'], project['followup4status'])
+      # for col in project:
+      #   print(col, end = " | ")
+      # print()
+      # if follow up day 2 AND followup2 != '' AND followup2status == 0(inactive)
+      if days_between(curr_date, project['date']) == 2 and project['followup2status'] == 0 and project['followup2'] != '':
+        # send follow up 2 and update status
+        try:
+          ids = asyncio.run(get_all_shortlisted_applicants(listing_num=str(project['listing'])))
+          asyncio.create_task(send_message_using_id(ids=ids, message=project['followup2'], listing_num=str(project['listing'])))
+          query_update('''UPDATE projects SET followup2status = 1 WHERE name = ?''', project['name'])
+        except:
+          print('Error while sending Follow up 2')
+          # send_email("Fail","Fail forever")
+          traceback.print_exc
+
+
+      # if follow up day 4 AND followup4 != '' AND followup4status == 0(inactive)
+      if days_between(curr_date, project['date']) == 4 and project['followup4status'] == 0 and project['followup4'] != '':
+        # send follow up 4 and update status
+        try:
+          ids = asyncio.run(get_all_shortlisted_applicants(listing_num=str(project['listing'])))
+          asyncio.create_task(send_message_using_id(ids=ids, message=project['followup4'], listing_num=str(project['listing'])))
+          query_update('''UPDATE projects SET followup4status = 1 WHERE name = ?''', project['name'])
+        except:
+          print('Error while sending Follow up 2')
+          # send_email("Fail","Fail forever")
+          traceback.print_exc
 
 
 async def run(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    asyncio.create_task(forever_checking_status())
+    asyncio.create_task(forever_checking_status(update, context))
     
 
 leader_deafult_keyboard = ReplyKeyboardMarkup(
@@ -1145,14 +1133,14 @@ async def announcement(update: Update, context: ContextTypes.DEFAULT_TYPE):
   if not leader:
     await context.bot.send_message(chat_id=chat_id, text="Only Leaders have access to this command")
     return
+  
   cursor = cx.cursor()
   cursor.execute(f'SELECT * FROM leaders WHERE chat_id = {chat_id};')
   projects = cursor.fetchall()
   if projects:
     reply_markup=[]
     for p in projects:
-      # reply_markup.append([InlineKeyboardButton(p["project_name"], callback_data=f"{p["project_name"]}_{chat_id}")])
-      reply_markup.append([InlineKeyboardButton(p["project_name"], callback_data=f"{p['project_name']}_{chat_id}")])
+      reply_markup.append([InlineKeyboardButton(p["project_name"], callback_data=f"announce_{p['project_name']}_{chat_id}")])
     await context.bot.send_message(chat_id=chat_id, text=f"Select a project to announce in", 
     reply_markup = InlineKeyboardMarkup(reply_markup))
     cursor.close()
@@ -1160,6 +1148,14 @@ async def announcement(update: Update, context: ContextTypes.DEFAULT_TYPE):
   else:
     context.bot.send_message(chat_id=chat_id, text="Only Leaders with active projects have access to this command")
 
+async def get_announcement(update:Update, context: ContextTypes.DEFAULT_TYPE, chat_id):
+  await context.bot.send_message(chat_id=chat_id, text="Enter announcement")
+  return 6
+
+async def announcement_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+  message = update.message.text
+  print(message)
+  return ConversationHandler.END
 
 async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
   chat_id = update.effective_chat.id
@@ -1485,14 +1481,6 @@ def main():
     app.add_handler(CommandHandler("instructions", instructions))
     app.add_handler(CommandHandler("announcement", announcement))
 
-    # FIND
-    # app.add_handler(ConversationHandler(
-    #   entry_points=[CallbackQueryHandler(button)],
-    #   states={
-    #     0:[MessageHandler(filters.TEXT & filters.COMMAND, )]
-    #   }
-    # ))
-
     try:
       app.add_handler(ConversationHandler(
           entry_points=[CommandHandler("daily", daily)],
@@ -1522,9 +1510,18 @@ def main():
         },
         fallbacks=[MessageHandler(filters.COMMAND, ignore)],
     ))
+    
+    # app.add_handler(ConversationHandler(
+    #     entry_points=[MessageHandler('a', get_announcement)],
+    #     states={
+    #     6: [MessageHandler(filters.TEXT & ~filters.COMMAND, announcement_message)],
+    #     },
+    #     fallbacks=[MessageHandler(filters.COMMAND, ignore)],
+    # ))
 
     app.add_handler(CallbackQueryHandler(button))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_name))
+    
     print("Initializing update checks")
 
     # TODO Uncomment
