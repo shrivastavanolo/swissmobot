@@ -8,16 +8,16 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS projects (
   listing INTEGER,
   name TEXT PRIMARY KEY,
-  assignment TEXT,
+  assignment TEXT NOT NULL,
   process TEXT DEFAULT NULL,
   date DATE DEFAULT NULL,
   invite TEXT DEFAULT NULL,
   intro TEXT DEFAULT NULL,
   followup2 TEXT DEFAULT NULL,
   followup4 TEXT DEFAULT NULL,
-  status TEXT DEFAULT "INACTIVE",
-  followup2status TEXT DEFAULT "INACTIVE",
-  followup4status TEXT DEFAULT "INACTIVE");
+  status BOOLEAN DEFAULT 0,
+  followup2status BOOLEAN DEFAULT 0,
+  followup4status BOOLEAN DEFAULT 0);
   
 CREATE TABLE IF NOT EXISTS leaders (
   chat_id INTEGER,
@@ -33,21 +33,47 @@ CREATE TABLE IF NOT EXISTS candidates (
   daily_counter INTEGER DEFAULT 0,
   daily_message BOOLEAN DEFAULT FALSE,
   valid BOOLEAN DEFAULT TRUE, 
+  UNIQUE(chat_id, project_name)
   FOREIGN KEY(project_name) REFERENCES projects(name) ON DELETE CASCADE);
 """)
-
-
 cx.commit()
 
-def add_project(project: str, assignment: str) -> bool:
+def add_project(listing: int, name: str, assignment: str, process: str, date:str, invite:str, intro:str, status:bool=False, followup2:str="", followup4:str="", followup2status:bool=False, followup4status:bool=False) -> bool:
   cursor = cx.cursor()
   result = True
   try:
-    cursor.execute(f'INSERT INTO projects(name, assignment) VALUES("{project}", "{assignment}");')
+    cursor.execute(
+            '''
+            INSERT INTO projects (listing, name, assignment, process, date, invite, intro, followup2, followup4, status, followup2status, followup4status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''',
+            (listing, name, assignment, process, date, invite, intro, followup2, followup4, status, followup2status, followup4status)
+        )
     cx.commit()
   except sqlite3.IntegrityError as e:
     print("Project already added")
     result = False
+  
+  cursor.close()
+  return result
+
+def update_project(project_name: str, **kwargs):
+  cursor = cx.cursor()
+  result = True
+  
+  set_clause = ', '.join([f'{key} = ?' for key in kwargs.keys()])
+    
+  values = list(kwargs.values())
+  
+  values.append(project_name)
+  
+  try:
+    cursor.execute(f'UPDATE projects SET {set_clause} WHERE listing = ?', values)
+    cx.commit()
+    print(f'UPDATE projects SET {set_clause} WHERE name = ?', values)
+  except :
+    print('''couldn't update the project''')
+    result = False      
   
   cursor.close()
   return result
@@ -57,6 +83,33 @@ def search_project(project: str):
   cursor.execute(f'SELECT * FROM projects WHERE name = "{project}";')
   result = cursor.fetchone()
 
+  cursor.close()
+  return result
+
+def query_get_one(query: str, params = ()):
+  cursor = cx.cursor()
+  cursor.execute(query, params)
+  result = cursor.fetchone()
+
+  cursor.close()
+  return result
+
+def query_get_many(query: str, params = ()):
+  cursor = cx.cursor()
+  cursor.execute(query, params)
+  result = cursor.fetchall()
+
+  cursor.close()
+  return result
+
+def query_update(query: str, params = ()):
+  cursor = cx.cursor()
+  result = True
+  try:
+    cursor.execute(query, params)
+  except:
+    result = False
+  cx.commit()
   cursor.close()
   return result
 

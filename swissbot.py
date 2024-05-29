@@ -26,13 +26,16 @@ from intershala_automation_start_api import get_all_shortlisted_applicants, send
 
 # APIs and tokens
 unique_id_recruiter = 'NA'
-openai.api_key = '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'
-openai.api_base = 'https://api.perplexity.ai'
+openai.api_key = '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'
+# openai.api_base = 'https://api.perplexity.ai'
+openai.api_base = 'https://api.openai.com'
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # KAIF
 TOKEN = '6119880672:AAGPBH_bjHYeeCs31tpk0vMNCVjvklzDtiI'
+# swissmote pv
+# TOKEN = '7098210763:AAGcqaIofG1mE_KtZkEVGroOVJPK4Tnzoew'
 
 dct_users = {}
 
@@ -44,109 +47,116 @@ dct_users = {}
 #start function
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     args: list = context.args
-    print(args)
-    # TODO put check if user is in leader or candidate
-    # send message accordingly
-    if not args:
-      #new session start here
-      await update.message.reply_text(
-      "Welcome to Swissmote Bot, exclusively for Persist Venture! 🎉" \
-      "I'm here to streamline your workflow with specialized functions:" \
-      "✨ For a simplified recruiting process (Assignment or Offer Letter), including automated sending assignments, messages, invites, shortlisting, and hiring on Internshala, use the command: /automate_internshala. This will ensure a fully automated process, eliminating the need for manual intervention." \
-      "🌟 Connect with our Vision:(https://www.youtube.com/watch?v=itGNk0wellQ) 🎥")
-      # return
-    
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
     name = update.effective_chat.first_name
-    project: str = args[0]
+    
+    print('args: ', args)
+    if not args:
+      is_leader = search_leader(chat_id=chat_id)
+      if is_leader:
+        message = "Welcome to Swissmote Bot, exclusively for Persist Venture! 🎉" \
+      "I'm here to streamline your workflow with specialized functions:" \
+      "✨ For a simplified recruiting process (Assignment or Offer Letter), including automated sending assignments, messages, invites, shortlisting, and hiring on Internshala, use the command: /automate_internshala. This will ensure a fully automated process, eliminating the need for manual intervention." \
+      "🌟 Connect with our Vision:(https://www.youtube.com/watch?v=itGNk0wellQ) 🎥"
+      else:
+        message = f"🎉 Hello {name}! Welcome to SwissmoteBot," + "\n" + \
+      "you are already a candidate for another project. Use /instructions to know more."
+      
+      await update.message.reply_text(text=message)
+      return
+    
+    project: str = args[0]  
     if project.startswith("xjfysbrv_"):
       #new Leader enters here using /start xjfysbrv_<project>
       project = project.split("_")[1]
       if search_project(project) is None:
         await update.message.reply_text("Invalid argument!")
         return
-      # leader = add_leader(chat_id, project)
+      
       leader = add_leader(user_id, project)
       if leader:
-        message = f"🎉 Hello {name}! Welcome to SwissmoteBot." + "\n" + \
-        "Here, you'll receive all assignment submissions and daily updates. 📬" + "\n" + \
-        "Plus, you can mass messages directly to everyone—just send it to me, and I will personally send this message to everyone 📢" + "\n" + \
-        "Let’s dive in! 💪"
-        await update.message.reply_text(message, reply_markup=leader_deafult_keyboard)
-        return
-      #if leader already exists for the project
-      elif not leader:
-        message = f"🎉 Hello {name}! Welcome to SwissmoteBot," + "\n" + \
-        "you are already a leader for this project."
-        await update.message.reply_text(message, reply_markup=leader_deafult_keyboard)
-        # return
-      
-    print(project.split("_")[1])
-    #if project doesnt exist
-    project_details = search_project(project.split("_")[1])
-    if project_details is None:
-      await update.message.reply_text("Invalid argument!")
-      return
-    
-    candidate = add_candidate(user_id, project.split("_")[1], int(datetime.now().timestamp()))
-    
-    #if candidate already belongs to another project (can't have 2 projects at the same time)
-    if not candidate:
-      message = f"🎉 Hello {name}! Welcome to SwissmoteBot," + "\n" + \
-      "you are already a candidate for another project. Use /instructions to know more."
-      return
-    
-    message = "🎉 Welcome to SwissmoteBot! I'm a bot designed by Systemic Altruism to keep you updated on the Hiring Process🚀" + "\n" + \
-      "Congratulations on being shortlisted! 🌟 To be hired with a PPO, here’s what you need to do:" + "\n" + \
-      "1. 📈 Share your daily updates and progress with me." + "\n" + \
-      "2. 📤 Submit your assignments here when ready." + "\n" + \
-      "The main thing we want to see in completing your assignment is not only your ability to learn something entirely new and push through to complete the task, but also your speed in doing so." + "\n" + \
-      "If you want this job, you should go and try and speed run crushing this assignment, If it takes you a few days give us a daily update on where you've made progress so we can assess your ablilty to learn quickly." + "\n" + \
-      "Check /instructions to understand the process better. Let’s get started! 💪." + "\n" + \
-      "Connect with our Vision:  https://www.youtube.com/watch?v=itGNk0wellQ"
-    
-    if project.startswith("dewdrop_"):
-      #assignment candidate
-      await update.message.reply_text(message)
-      await update.message.reply_text(project_details["assignment"], reply_markup=candidate_deafult_keyboard)
-    
-    elif project.startswith("rcbwin_"):
-      #offer letter candidate
-      await context.bot.send_message(chat_id=chat_id, text="⏳ Please wait while we process your offer letter... 📝")
-      try:
-        full_name=f"{update.effective_chat.first_name } {update.effective_chat.last_name}"
-        
-        project_split = project.split('_')[1]
-        
-        await update.message.reply_text(project_details["assignment"], reply_markup=candidate_deafult_keyboard)
-        try:
-          form.pdf_top(name=full_name,
-                      filepath=f"offer_letters/{full_name}_{project_split}_offerletter.pdf"
-                    )
-        except:
-          print('really bro')
-          
-        await context.bot.send_document(chat_id=chat_id, document=open(f"offer_letters/{full_name}_{project_split}_offerletter.pdf","rb"))
-      except Exception as e:
-        print(e)
-
-        
-    #sends a candidate count to the project leader whenever new candidate joins  
-    candidate_count = get_candidate_count(project)
-    message = "🌟 New Applicant! 🌟" + "\n" + \
-    f"{name} has just joined SwissmoteBot for the {project} Assignment" + "\n" + \
-    "We gave them an warm welcome and succesfully Sent Assignment!" + "\n" + \
-    f"Total Applicants: {candidate_count['count']}"
-    leaders = get_leaders(project)
-    for leader in leaders:
-      if not leader["join_message"]:
-        join_message = await context.bot.send_message(chat_id=leader["chat_id"], text=message)
+        message = f"🎉 Hello {name}! Welcome to SwissmoteBot2.0." + "\n" + \
+      "Here, you'll receive all assignment submissions and daily updates. 📬" + "\n" + \
+      "Plus, you can mass messages directly to everyone—just send it to me, and I will personally send this message to everyone 📢" + "\n" + \
+      "Let’s dive in! 💪"
       else:
-        await context.bot.delete_message(chat_id=leader["chat_id"], message_id=leader["join_message"])
-        join_message = await context.bot.send_message(chat_id=leader["chat_id"], text=message)
-      update_leader(leader["chat_id"], join_message.message_id)      
-      return
+        message = f"🎉 Hello {name}! Welcome to SwissmoteBot2.0," + "\n" + \
+      "you are already a leader for this project."
+      await update.message.reply_text(message, reply_markup=leader_deafult_keyboard)
+    else:
+      # print(project)
+      project_details = search_project(project.split('_')[1])
+      # print(project_details)
+      # #if project doesnt exist
+      if project_details is None:
+        await update.message.reply_text("Invalid argument!")
+        return 
+      
+      candidate = add_candidate(user_id, project.split("_")[1], int(datetime.now().timestamp()))
+      #if candidate already belongs to another project (can't have 2 projects at the same time)
+      if not candidate:
+        message = f"🎉 Hello {name}! Welcome to SwissmoteBot," + "\n" + \
+        "you are already a candidate for another project. Use /instructions to know more."
+        await update.message.reply_text(message)
+        return
+    
+      message = "🎉 Welcome to SwissmoteBot! I'm a bot designed by Systemic Altruism to keep you updated on the Hiring Process🚀" + "\n" + \
+        "Congratulations on being shortlisted! 🌟 To be hired with a PPO, here’s what you need to do:" + "\n" + \
+        "1. 📈 Share your daily updates and progress with me." + "\n" + \
+        "2. 📤 Submit your assignments here when ready." + "\n" + \
+        "The main thing we want to see in completing your assignment is not only your ability to learn something entirely new and push through to complete the task, but also your speed in doing so." + "\n" + \
+        "If you want this job, you should go and try and speed run crushing this assignment, If it takes you a few days give us a daily update on where you've made progress so we can assess your ablilty to learn quickly." + "\n" + \
+        "Check /instructions to understand the process better. Let’s get started! 💪." + "\n" + \
+        "Connect with our Vision:  https://www.youtube.com/watch?v=itGNk0wellQ"
+    
+      if project.startswith("dewdrop_"):
+        #assignment candidate
+        await update.message.reply_text(message)
+        await update.message.reply_text(project_details["assignment"], reply_markup=candidate_deafult_keyboard)
+        # return
+    
+      elif project.startswith("rcbwin_"):
+        #offer letter candidate
+        try:
+          full_name=f"{update.effective_chat.first_name } {update.effective_chat.last_name}"
+          
+          project_split = project.split('_')[1]
+          
+          await update.message.reply_text(project_details["assignment"], reply_markup=candidate_deafult_keyboard)
+          await context.bot.send_message(chat_id=chat_id, text="⏳ Please wait while we process your offer letter... 📝")
+          try:
+            form.pdf_top(name=full_name,
+                        filepath=f"offer_letters/{full_name}_{project_split}_offerletter.pdf"
+                      )
+          except:
+            print('really bro')
+            
+          await context.bot.send_document(chat_id=chat_id, document=open(f"offer_letters/{full_name}_{project_split}_offerletter.pdf","rb"))
+          # return
+        except Exception as e:
+          print(e)
+
+      print('give count')
+      #sends a candidate count to the project leader whenever new candidate joins  
+      candidate_count = query_get_one("SELECT COUNT(*) as count FROM candidates WHERE project_name = ?", [project.split('_')[1]])
+      print(candidate_count['count'])
+      message = "🌟 New Applicant! 🌟" + "\n" + \
+      f"{name} has just joined SwissmoteBot for the {project.split('_')[1]} Assignment" + "\n" + \
+      "We gave them an warm welcome and succesfully Sent Assignment!" + "\n" + \
+      f"Total Applicants: {candidate_count['count']}"
+      leaders = get_leaders(project.split('_')[1])
+      for leader in leaders:
+        print(leader)
+        if not leader["join_message"]:
+          print('not leader["join_message"]')
+          join_message = await context.bot.send_message(chat_id=leader["chat_id"], text=message)
+        else:
+          print('else from join message')
+          await context.bot.delete_message(chat_id=leader["chat_id"], message_id=leader["join_message"])
+          join_message = await context.bot.send_message(chat_id=leader["chat_id"], text=message)
+        update_leader(leader["chat_id"], join_message.message_id)      
+    return
 
 #gets listing of internships from internshala
 async def choose_listing_automate(update: Update, context: ContextTypes.DEFAULT_TYPE,flag:int, page_num, emp_type ) -> None:  
@@ -297,7 +307,7 @@ Please provide your assignment. Make sure it includes:
 
 A link to the assignment 🖇️
 A Loom video 📹
-A Swissmote link : https://t.me/testing_oo7_bot?start=dewdrop_{dct_users[user_id]['project_name_']}
+A Swissmote link : https://t.me/swissmotepvbot?start=dewdrop_{dct_users[user_id]['project_name_']}
 
 Suggestions? Use /suggestion."""
         await context.bot.send_message(chat_id=int(user_id), text=message)
@@ -306,7 +316,7 @@ Suggestions? Use /suggestion."""
 📝 Hired Message
 Please enter the hired message as per the offer letter process.
 
-Keep Swissmote.0 link : https://t.me/testing_oo7_bot?start=rcbwin_{dct_users[user_id]['project_name_']}
+Keep Swissmote.0 link : https://t.me/swissmotepvbot?start=rcbwin_{dct_users[user_id]['project_name_']}
 
 Suggestions? Use /suggestion."""
         await context.bot.send_message(chat_id=int(user_id), text=message)
@@ -447,7 +457,7 @@ Please provide your assignment. Make sure it includes:
 
 - link to the assignment 🖇️
 - Loom video 📹
-- Swissmote2.0 link : https://t.me/testing_oo7_bot?start=dewdrop_{dct_users[user_id]['project_name_']}
+- Swissmote2.0 link : https://t.me/swissmotepvbot?start=dewdrop_{dct_users[user_id]['project_name_']}
 
 *Suggestions?* Use /suggestion."""
 , parse_mode='Markdown')
@@ -456,7 +466,7 @@ Please provide your assignment. Make sure it includes:
 📝 *Hired Message*
 Please enter the hired message as per the offer letter process.
 
-Keep Swissmote.0 link : https://t.me/testing_oo7_bot?start=rcbwin_{dct_users[user_id]['project_name_']}
+Keep Swissmote.0 link : https://t.me/swissmotepvbot?start=rcbwin_{dct_users[user_id]['project_name_']}
 
 *Suggestions?* Use */suggestion*.""", parse_mode='Markdown')            
                   
@@ -479,7 +489,7 @@ Enter the follow-up message for Day 4.
 To skip, use */skip*. For suggestions, use */suggestion*.""", parse_mode='Markdown')          
         elif dct_users[user_id]['followup_4'] == True:
             dct_users[user_id]['followup_4'] = False
-            await context.bot.send_message(chat_id=int(user_id), text=f"""Leader need to join from this link: https://t.me/testing_oo7_bot?start=xjfysbrv_{dct_users[user_id]['project_name_']}""")
+            await context.bot.send_message(chat_id=int(user_id), text=f"""Leader need to join from this link: https://t.me/swissmotepvbot?start=xjfysbrv_{dct_users[user_id]['project_name_']}""")
           
             asyncio.create_task(execute_internshala_automation(update, context))
     except:
@@ -705,35 +715,40 @@ async def background_handle_name(update: Update, context: ContextTypes.DEFAULT_T
     message = update.message.text
     print(message)
     print(dct_users)
-    try:
-        if dct_users[user_id].get('announcement',0)!=0:
-          asyncio.create_task(send_announce(update, context,dct_users[user_id].get('announcement' )))
 
-        elif dct_users[user_id]['project_name'] == True:
+    try:
+        # Check if there's callback data and call reply_done
+        if context.user_data.get("callback_data"):
+            await reply_done(update, context)
+            return
+
+        # if dct_users[user_id].get('announcement', 0) != 0:
+        #     asyncio.create_task(send_announce(update, context, dct_users[user_id].get('announcement')))
+
+        if dct_users[user_id]['project_name'] == True:
             sanitized_message = re.sub(r'\W+', '', message)
-            search_result = query_get_one('''SELECT name FROM projects where name = ?''', [sanitized_message])
+            search_result = query_get_one('''SELECT name FROM projects WHERE name = ?''', [sanitized_message])
             if search_result:
-              await update.message.reply_text(text='Already have a project with same name, \ntry some other name')
-              return
+                await update.message.reply_text(text='Already have a project with the same name, \ntry some other name')
+                return
             dct_users[user_id]['project_name_'] = sanitized_message
             dct_users[user_id]['project_name'] = False
             keyboard = [
                 [InlineKeyboardButton("Assignment", callback_data=f'assignment_{user_id}'),
-                InlineKeyboardButton("Offer Letter", callback_data=f'offerletter_{user_id}')]
+                 InlineKeyboardButton("Offer Letter", callback_data=f'offerletter_{user_id}')]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             await update.message.reply_text('With which process would you like to automate this listing? 📝', reply_markup=reply_markup)
             return
-                
-            
+
         elif dct_users[user_id]['listing'] == True:
             try:
-                emp_type =  dct_users[user_id]['emp_type']
+                emp_type = dct_users[user_id]['emp_type']
                 file_path = f'{emp_type}_details.txt'
                 listing_num = ''
                 try:
                     message = int(message)
-                except:
+                except ValueError:
                     await context.bot.send_message(chat_id=int(user_id), text="🔢 Message must be a number.")
                     return
                 with open(file_path, 'r') as file:
@@ -741,134 +756,132 @@ async def background_handle_name(update: Update, context: ContextTypes.DEFAULT_T
                         count = line.split('___')[0]
                         if str(count) == str(message):
                             listing_num = line.split('___')[2]
-                            
+
                 search_result = query_get_one('''SELECT listing, name FROM projects WHERE listing = ?''', [listing_num])
-                if search_result != None:
-                  keyboard = [
+                if search_result is not None:
+                    keyboard = [
                         [InlineKeyboardButton("Return to Listings", callback_data=f'restart_{user_id}'),
-                        InlineKeyboardButton("Continue", callback_data=f'continue_{user_id}')]
+                        #  InlineKeyboardButton("Continue", callback_data=f'continue_{user_id}')]
+                        ]
                     ]
-                  active_project = search_result
-                  print(active_project)
-                  reply_markup = InlineKeyboardMarkup(keyboard)
-                  await context.bot.send_message(chat_id=user_id, text=f'Already active project 🟢 \nwith this listing \nProject Name: {active_project} \nReturn to Listing will abort this request and Continuing would remove the last project', reply_markup=reply_markup)
-                    
+                    active_project = search_result
+                    print(active_project)
+                    reply_markup = InlineKeyboardMarkup(keyboard)
+                    await context.bot.send_message(chat_id=user_id, text=f'Already active project 🟢 \nwith this listing \nProject Name: {active_project[1]} \nReturn to Listing will abort this request and Continuing would remove the last project', reply_markup=reply_markup)
+                    return
+
                 dct_users[user_id]['listing_num'] = int(listing_num)
                 dct_users[user_id]['listing'] = False
                 await project_name(update, context)
-            except:
+            except Exception as e:
                 traceback.print_exc()
-                
+
         elif dct_users[user_id]['assignment'] == True:
             try:
-                if dct_users[user_id]['assignment_process'] == True:
-                    process_ = 'assignment'
-                else:
-                    process_ = 'offer'
-                # if dct_users[user_id]['invite_message_']==False and dct_users[user_id]['intro_message_']!=False:
-                #     save_details_in_file(listing=dct_users[user_id]['listing_num'], project_name = dct_users[user_id]['project_name_'], intro = dct_users[user_id]['intro_message_'], assignment = message, date=datetime.now().strftime("%Y-%m-%d"), status='active', process=process_)
-                # elif dct_users[user_id]['invite_message_']!=False and dct_users[user_id]['intro_message_']==False:
-                #     save_details_in_file(listing=dct_users[user_id]['listing_num'], project_name = dct_users[user_id]['project_name_'], invite = dct_users[user_id]['invite_message_'], assignment = message, date=datetime.now().strftime("%Y-%m-%d"), status='active', process=process_)
-                # elif dct_users[user_id]['invite_message_']==False and dct_users[user_id]['intro_message_']==False:
-                #     save_details_in_file(listing=dct_users[user_id]['listing_num'], project_name = dct_users[user_id]['project_name_'], assignment = message, date=datetime.now().strftime("%Y-%m-%d"), status='active', process=process_)
-                # else:
-                #     save_details_in_file(listing=dct_users[user_id]['listing_num'], project_name = dct_users[user_id]['project_name_'], invite = dct_users[user_id]['invite_message_'], intro = dct_users[user_id]['intro_message_'], assignment = message, date=datetime.now().strftime("%Y-%m-%d"), status='active', process=process_)
-                    
-                add_project(listing=dct_users[user_id]['listing_num'], name = dct_users[user_id]['project_name_'], invite = dct_users[user_id]['invite_message_'], intro = dct_users[user_id]['intro_message_'], assignment = message, date=datetime.now().strftime("%Y-%m-%d"), status=1, process=process_)
-                
+                process_ = 'assignment' if dct_users[user_id]['assignment_process'] else 'offer'
+                add_project(listing=dct_users[user_id]['listing_num'], name=dct_users[user_id]['project_name_'],
+                            invite=dct_users[user_id]['invite_message_'], intro=dct_users[user_id]['intro_message_'],
+                            assignment=message, date=datetime.now().strftime("%Y-%m-%d"), status=1, process=process_)
+
                 await followup_2(update, context)
-            except:
+            except Exception as e:
                 traceback.print_exc()
+
         elif dct_users[user_id]['invite_message'] == True:
             try:
                 dct_users[user_id]['invite_message_'] = message
-                await intro_message(update,context)
-            except:
-                traceback.print_exc() 
+                await intro_message(update, context)
+            except Exception as e:
+                traceback.print_exc()
+
         elif dct_users[user_id]['intro_message'] == True:
             try:
                 dct_users[user_id]['intro_message_'] = message
                 await give_assignment(update, context)
-            except:
+            except Exception as e:
                 traceback.print_exc()
+
         elif dct_users[user_id]['followup_2'] == True:
-            # await update_details_in_file(listing=dct_users[user_id]['listing_num'], followup2=message)
-          query_update('''UPDATE projects
-            SET followup2 = ?, followup2status = ? 
-            WHERE name = ?''', [message, 0, dct_users[user_id]['project_name_']])
-          await followup_4(update, context)
+            query_update('''UPDATE projects
+                            SET followup2 = ?, followup2status = ? 
+                            WHERE name = ?''', [message, 0, dct_users[user_id]['project_name_']])
+            await followup_4(update, context)
+
         elif dct_users[user_id]['followup_4'] == True:
             try:
                 query_update('''UPDATE projects
-                SET followup4 = ?, followup4status = ? 
-                WHERE name = ?''', [message, 0, dct_users[user_id]['project_name_']])
-                await context.bot.send_message(chat_id=int(user_id), text=f"""Leaders need to join from this link: https://t.me/testing_oo7_bot?start=xjfysbrv_{dct_users[user_id]['project_name_']}""")
+                                SET followup4 = ?, followup4status = ? 
+                                WHERE name = ?''', [message, 0, dct_users[user_id]['project_name_']])
+                await context.bot.send_message(chat_id=int(user_id), text=f"""Leaders need to join from this link: https://t.me/swissmotepvbot?start=xjfysbrv_{dct_users[user_id]['project_name_']}""")
                 asyncio.create_task(execute_internshala_automation(update, context))
-            except:
-                pass
-        else:
-            if search_leader(chat_id):   
-              messages = [
-                  {
-                      "role": "system",
-                      "content": """if someeone ask anything about automating internshala then ask to click on /automate_internshala, with this entire process will be automated to send assignment, message over internshala.
-                          To add assignment reviewer, recriter, leader swissmot bot so they can receive assignment submission directly. 
-                          you are swissmot bot of persist venture and can do only those things which is mentioned in context and you can't do other task and can't answer any other offtopic question.
-                          only answer to those questions related to provided context don't answer any other question as you are an private persist venture bot"""
-                  },
-                  {
-                      "role": "user",
-                      "content": f"{message}"
-                  },
-              ]
-            else:
-               messages = [
-                  {
-                      "role": "system",
-                      "content": """you are swissmot bot of persist venture and can do only those things which is mentioned in context and you can't do other task and can't answer any other offtopic question.
-                          only answer to those questions related to provided context don't answer any other question as you are an private persist venture bot. ask the user to use /questions command for any questions."""
-                  },
-                  {
-                      "role": "user",
-                      "content": f"{message}"
-                  },
-              ]
-            
-            response = openai.ChatCompletion.create(
-                model="sonar-small-chat",
-                messages=messages,
-            )
-            message = response["choices"][0]["message"]["content"]
-            await context.bot.send_message(chat_id=int(user_id), text=f"{message}")
-            print(message)
+            except Exception as e:
+                traceback.print_exc()
     except:
-        if unique_id_recruiter!='NA' and message == unique_id_recruiter:
-            with open('reviewer_details.txt', 'a') as file:
-                # for count, (name, internship_id) in enumerate(internship_info, start=1):
-                line = f"{user_name}___{user_id}\n"
-                file.write(line)
-            await context.bot.send_message(chat_id=int(user_id), text=f"👩‍💼 You're assigned as a Project Leader. You'll soon be assigned a project.")
-            return
-        messages = [
-            {
-                "role": "system",
-                "content": """if someeone ask anything about automating internshala then ask to click on /automate_internshala, with this entire process will be automated to send assignment, message over internshala.
-                        To add assignment reviewer, recriter, leader over swissmot bot ask to click on so they can receive assignment submission directly. 
-                        you are swissmot bot of persist venture and can do only those things which is mentioned in context and you can't do other task and can't answer any other offtopic question.
-                        only answer to those questions related to provided context don't answer any other question as you are an private persist venture bot"""
-            },
-            {
-                "role": "user",
-                "content": f"{message}"
-            },
-        ]
-        response = openai.ChatCompletion.create(
-            model="sonar-small-chat",
-            messages=messages,
-        )
-        message = response["choices"][0]["message"]["content"]
-        await context.bot.send_message(chat_id=int(user_id), text=f"{message}")
-        print(message)
+        pass
+        # TODO fix LLM
+    #     else:
+    #         if search_leader(chat_id):   
+    #           messages = [
+    #               {
+    #                   "role": "system",
+    #                   "content": """if someeone ask anything about automating internshala then ask to click on /automate_internshala, with this entire process will be automated to send assignment, message over internshala.
+    #                       To add assignment reviewer, recriter, leader swissmot bot so they can receive assignment submission directly. 
+    #                       you are swissmot bot of persist venture and can do only those things which is mentioned in context and you can't do other task and can't answer any other offtopic question.
+    #                       only answer to those questions related to provided context don't answer any other question as you are an private persist venture bot"""
+    #               },
+    #               {
+    #                   "role": "user",
+    #                   "content": f"{message}"
+    #               },
+    #           ]
+    #         else:
+    #            messages = [
+    #               {
+    #                   "role": "system",
+    #                   "content": """you are swissmot bot of persist venture and can do only those things which is mentioned in context and you can't do other task and can't answer any other offtopic question.
+    #                       only answer to those questions related to provided context don't answer any other question as you are an private persist venture bot. ask the user to use /questions command for any questions."""
+    #               },
+    #               {
+    #                   "role": "user",
+    #                   "content": f"{message}"
+    #               },
+    #           ]
+            
+    #         response = openai.ChatCompletion.create(
+    #             model="sonar-small-chat",
+    #             messages=messages,
+    #         )
+    #         message = response["choices"][0]["message"]["content"]
+    #         await context.bot.send_message(chat_id=int(user_id), text=f"{message}")
+    #         print(message)
+    # except:
+    #     if unique_id_recruiter!='NA' and message == unique_id_recruiter:
+    #         with open('reviewer_details.txt', 'a') as file:
+    #             # for count, (name, internship_id) in enumerate(internship_info, start=1):
+    #             line = f"{user_name}___{user_id}\n"
+    #             file.write(line)
+    #         await context.bot.send_message(chat_id=int(user_id), text=f"👩‍💼 You're assigned as a Project Leader. You'll soon be assigned a project.")
+    #         return
+    #     messages = [
+    #         {
+    #             "role": "system",
+    #             "content": """if someeone ask anything about automating internshala then ask to click on /automate_internshala, with this entire process will be automated to send assignment, message over internshala.
+    #                     To add assignment reviewer, recriter, leader over swissmot bot ask to click on so they can receive assignment submission directly. 
+    #                     you are swissmot bot of persist venture and can do only those things which is mentioned in context and you can't do other task and can't answer any other offtopic question.
+    #                     only answer to those questions related to provided context don't answer any other question as you are an private persist venture bot"""
+    #         },
+    #         {
+    #             "role": "user",
+    #             "content": f"{message}"
+    #         },
+    #     ]
+    #     response = openai.ChatCompletion.create(
+    #         model="sonar-small-chat",
+    #         messages=messages,
+    #     )
+    #     message = response["choices"][0]["message"]["content"]
+    #     await context.bot.send_message(chat_id=int(user_id), text=f"{message}")
+    #     print(message)
     
 async def execute_internshala_automation(update, context):
     global dct_users
@@ -977,27 +990,29 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
       callback_data = json.loads(query.data)
       context.user_data["callback_data"] = callback_data
+           
+      # FIND REPLY
+      if callback_data["t"] == "d":
+        context.user_data["reply"] = "Daily"
+        await context.bot.send_message(chat_id=user_id, text="📝 Enter reply to the daily message:")
+
+      elif callback_data["t"] == "q":
+        context.user_data["reply"] = "Question"
+        context.user_data["callback_data"]["m"].append(update.effective_message.id)
+        await context.bot.send_message(chat_id=user_id, text="📝 Enter reply to the question:")
+
+      elif callback_data["t"] == "as":
+        context.user_data["reply"] = "Assignment"
+        await context.bot.send_message(chat_id=user_id, text="📝 Enter reply to the assignment:")
+
+      elif callback_data["t"] == "an":
+        context.user_data["reply"] = "Announce"
+        context.user_data["project"] = callback_data["p"]
+        await context.bot.send_message(chat_id=user_id, text="Start typing the announcement:")
+
     except:
       print('callback not in json format')
-    # FIND REPLY
-    if callback_data["t"] == "d":
-      context.user_data["reply"] = "Daily"
-      await context.bot.send_message(chat_id=user_id, text="📝 Enter reply to the daily message:")
-
-    elif callback_data["t"] == "q":
-      context.user_data["reply"] = "Question"
-      context.user_data["callback_data"]["m"].append(update.effective_message.id)
-      await context.bot.send_message(chat_id=user_id, text="📝 Enter reply to the question:")
-
-    elif callback_data["t"] == "as":
-      context.user_data["reply"] = "Assignment"
-      await context.bot.send_message(chat_id=user_id, text="📝 Enter reply to the assignment:")
-
-    elif callback_data["t"] == "an":
-      context.user_data["reply"] = "Announce"
-      context.user_data["project"] = callback_data["p"]
-      await context.bot.send_message(chat_id=user_id, text="Start typing the announcement:")
-
+      
     # Handle other query actions
     if user_id in dct_users:           
       if Query_called[0] == 'assignment':
@@ -1013,7 +1028,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
       elif Query_called[0] == 'create':
         await query.edit_message_text(text="🔧 Currently in Testing phase. Will be Live soon.")
 
-      elif Query_called[0] == 'choose':
+      elif Query_called[0] == 'choose' or Query_called[0] == 'restart':
         keyboard = [
           [InlineKeyboardButton("Internship", callback_data=f'emp_itn_{user_id}'),
           InlineKeyboardButton("Jobs", callback_data=f'emp_job_{user_id}')]
@@ -1068,7 +1083,7 @@ async def forever_checking_status(update: Update, context: ContextTypes.DEFAULT_
     curr_date = datetime.now().strftime("%Y-%m-%d")
     for project in all_projects:
       # FIND intershala_automation_start_api
-      # success = await run_async_process_mk(['intershala_automation_start_api.py', str(row['listing'])])
+      # success = await run_async_process_mk(['intershala_automation_start_api.py', str(project['listing'])])
       success = True
       if not success:
         send_email("Fail","Fail forever")
@@ -1430,13 +1445,16 @@ async def reply_done(update: Update, context: ContextTypes.DEFAULT_TYPE):
     total = candidates.__len__()
     
     for index, candidate in enumerate(candidates):
-      if index % 10 == 0: await announce_stat.edit_text(f"🔄 Processing announcement. [{index}/{total}]")
+      print('inside for looop')
+      print('index: ', index)
+      if index % 10 == 0: 
+        await announce_stat.edit_text(f"🔄 Processing announcement. [{index}/{total}]")
       try:
         await context.bot.send_message(chat_id=candidate["chat_id"], text=f"Message from Team: \n{message}")
       except Exception as e:
         print(e)
 
-    announce_stat.edit_text(f"🔄 Processing announcement. [{index}/{total}]")
+    # announce_stat.edit_text(f"🔄 Processing announcement. [{index}/{total}]")
     await update.message.reply_text(f"☑️ Announcement done.")
 
     del context.user_data["project"]
@@ -1533,18 +1551,9 @@ def main():
         },
         fallbacks=[MessageHandler(filters.COMMAND, ignore)],
     ))
-    
-    # app.add_handler(ConversationHandler(
-    #     entry_points=[MessageHandler('a', get_announcement)],
-    #     states={
-    #     6: [MessageHandler(filters.TEXT & ~filters.COMMAND, announcement_message)],
-    #     },
-    #     fallbacks=[MessageHandler(filters.COMMAND, ignore)],
-    # ))
-
     app.add_handler(CallbackQueryHandler(button))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_name))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, reply_done))
+    # app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, reply_done))
     
     print("Initializing update checks")
 
