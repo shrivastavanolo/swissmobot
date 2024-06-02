@@ -2,7 +2,6 @@ from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 import secret
-import pickle
 from langchain.llms import OpenAI
 from langchain.memory import VectorStoreRetrieverMemory
 from langchain.chains import ConversationChain
@@ -75,4 +74,4 @@ def get_faiss_ans(train_text_file_path,query):
         res = llm.invoke(messages).content
         return res
 
-filepath="C:\\Users\\shrey\\OneDrive\\Documents\\audtran\\copied_content.txt"      
+# filepath="C:\\Users\\shrey\\OneDrive\\Documents\\audtran\\copied_content.txt"      
