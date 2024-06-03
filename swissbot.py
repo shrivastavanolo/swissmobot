@@ -69,17 +69,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
       await update.message.reply_text(text=message)
       return
     
+    global dct_users
     project: str = args[0]  
     project_split = project.split('_')[1]
     
     if project.startswith("xjfysbrv_"):
       #new Leader enters here using /start xjfysbrv_<project>
       project = project.split("_")[1]
-      if search_project(project) is None:
+      print('project: ')
+      if search_project(project_split) is None:
         await update.message.reply_text("Invalid argument!")
         return
       
-      leader = add_leader(user_id, project)
+      leader = add_leader(user_id, project_split)
       if leader:
         message = f"🎉 Hello {name}! Welcome to SwissmoteBot2.0." + "\n" + \
       "Here, you'll receive all assignment submissions and daily updates. 📬" + "\n" + \
@@ -91,15 +93,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
       await update.message.reply_text(message, reply_markup=leader_deafult_keyboard)
     else:
       # print(project)
-      project_details = search_project(project.split('_')[1])
+      project_details = search_project(project_split)
       # print(project_details)
       # #if project doesnt exist
       if project_details is None:
         await update.message.reply_text("Invalid argument!")
         return 
-      
+      # TODO uncomment
       candidate = add_candidate(user_id, project.split("_")[1], int(datetime.now().timestamp()))
-      #if candidate already belongs to another project (can't have 2 projects at the same time)
+        #if candidate already belongs to another project (can't have 2 projects at the same time)
       if not candidate:
         message = f"🎉 Hello {name}! Welcome to SwissmoteBot," + "\n" + \
         "you are already a candidate for another project. Use /instructions to know more."
@@ -118,19 +120,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
       if project.startswith("dewdrop_"):
         #assignment candidate
         await update.message.reply_text(message)
-        await update.message.reply_text(project_details["assignment"], reply_markup=candidate_deafult_keyboard)
+        # await update.message.reply_text(project_details["assignment"], reply_markup=candidate_deafult_keyboard)
         # return
-    
+
       elif project.startswith("rcbwin_"):
         #offer letter candidate
+        
         try:
-          # full_name=f"{update.effective_chat.first_name } {update.effective_chat.last_name}"
-          
           project_split = project.split('_')[1]
           context.user_data['project'] = project_split
-          await update.message.reply_text(project_details["assignment"], reply_markup=candidate_deafult_keyboard)
-          await update.message.reply_text(text="Please enter your full name to proceed with the offer letter process. 📄✨")
-              
+          # await update.message.reply_text(project_details["assignment"], reply_markup=candidate_deafult_keyboard)
+          # await update.message.reply_text(text="Please enter your full name to proceed with the offer letter process. 📄✨")
+          await candidate_signup(update, context)
+                        
           # await context.bot.send_message(chat_id=chat_id, text="⏳ Please wait while we process your offer letter... 📝")
           # try:
           #   form.pdf_top(name=full_name,
@@ -285,6 +287,23 @@ Hire the best talents from around the world 🌍. Send assignments ✍️ and re
 
 """, reply_markup=reply_markup, parse_mode='Markdown')
 
+async def candidate_signup(update: Update, context:ContextTypes.DEFAULT_TYPE):
+  print('candidate_signup')
+  user_id = update.effective_chat.id
+  global dct_users
+  # deleted in handle_name
+  dct_users[user_id] = {'candidate_login':True}
+
+  # try:
+  #   if user_id not in dct_users:
+  #   # Initialize it with an empty dictionary if not present
+  #     dct_users[user_id] = {}
+
+  #   dct_users[user_id]['candidate_login'] = True
+  # except:
+  #   print('big break')
+  await context.bot.send_message(chat_id=user_id, text="Please enter your full name to proceed with the offer letter process. 📄✨")
+    
 async def project_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     global dct_users
     user_id = update.effective_chat.id
@@ -296,8 +315,13 @@ async def project_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     dct_users[user_id]['followup_2'] = False
     dct_users[user_id]['followup_4'] = False
     dct_users[user_id]['reviewer'] = False
+    
+    dct_users[user_id]['dailyupdate'] = False
+    dct_users[user_id]['assignmentsubmission'] = False
+    dct_users[user_id]['question'] = False
+    dct_users[user_id]['candidate_login'] = False
+    
     await context.bot.send_message(chat_id=int(user_id), text="Enter Project Name:")
-
 
 async def listing(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
   # print('inside listing...')
@@ -313,7 +337,10 @@ async def listing(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     dct_users[user_id]['followup_4'] = False
     dct_users[user_id]['reviewer'] = False
     
-
+    dct_users[user_id]['dailyupdate'] = False
+    dct_users[user_id]['assignmentsubmission'] = False
+    dct_users[user_id]['question'] = False
+    dct_users[user_id]['candidate_login'] = False   
 
 async def give_assignment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     global dct_users
@@ -326,6 +353,12 @@ async def give_assignment(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     dct_users[user_id]['followup_2'] = False
     dct_users[user_id]['followup_4'] = False
     dct_users[user_id]['reviewer'] = False
+    
+    dct_users[user_id]['dailyupdate'] = False
+    dct_users[user_id]['assignmentsubmission'] = False
+    dct_users[user_id]['question'] = False
+    dct_users[user_id]['candidate_login'] = False
+    
     if dct_users[user_id]['assignment_process'] == True:
         message= f"""
 📝 Submit link to the assignment either in form of notion doc or loom video 🖇️
@@ -356,6 +389,11 @@ async def invite_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     dct_users[user_id]['followup_2'] = False
     dct_users[user_id]['followup_4'] = False
     dct_users[user_id]['reviewer'] = False
+    
+    dct_users[user_id]['dailyupdate'] = False
+    dct_users[user_id]['assignmentsubmission'] = False
+    dct_users[user_id]['question'] = False
+    dct_users[user_id]['candidate_login'] = False
     # if dct_users[user_id]['assignment_process'] == True:
     await context.bot.send_message(chat_id=int(user_id), text="""
 📝 *Invitation Message*
@@ -374,6 +412,12 @@ async def intro_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     dct_users[user_id]['followup_2'] = False
     dct_users[user_id]['followup_4'] = False
     dct_users[user_id]['reviewer'] = False
+    
+    dct_users[user_id]['dailyupdate'] = False
+    dct_users[user_id]['assignmentsubmission'] = False
+    dct_users[user_id]['question'] = False
+    dct_users[user_id]['candidate_login'] = False
+    
     if dct_users[user_id]['assignment_process'] == True:
         await context.bot.send_message(chat_id=int(user_id), text="""
 📝 Assignment Message
@@ -412,6 +456,12 @@ async def followup_2(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     dct_users[user_id]['followup_2'] = True
     dct_users[user_id]['followup_4'] = False
     dct_users[user_id]['reviewer'] = False
+    
+    dct_users[user_id]['dailyupdate'] = False
+    dct_users[user_id]['assignmentsubmission'] = False
+    dct_users[user_id]['question'] = False
+    dct_users[user_id]['candidate_login'] = False
+    
     if dct_users[user_id]['assignment_process'] == True:
       
       await context.bot.send_message(chat_id=int(user_id), text="""
@@ -426,9 +476,8 @@ To skip, use */skip*. For suggestions, use */suggestion*.""", parse_mode='Markdo
 Enter the follow-up message for Day 2.
 
 To skip, use */skip*. For suggestions, use */suggestion*.""", parse_mode='Markdown')
-  
-    
-    
+
+     
 async def followup_4(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     global dct_users
     user_id = update.effective_chat.id
@@ -440,6 +489,12 @@ async def followup_4(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     dct_users[user_id]['followup_2'] = False
     dct_users[user_id]['followup_4'] = True
     dct_users[user_id]['reviewer'] = False
+    
+    dct_users[user_id]['dailyupdate'] = False
+    dct_users[user_id]['assignmentsubmission'] = False
+    dct_users[user_id]['question'] = False
+    dct_users[user_id]['candidate_login'] = False
+    
     if dct_users[user_id]['assignment_process'] == True:
         await context.bot.send_message(chat_id=int(user_id), text="""
 📝 *Follow-Up for Day 4*
@@ -735,6 +790,121 @@ https://AppliedPillai.com
     except:
         pass
 
+async def question(update: Update, context: ContextTypes.DEFAULT_TYPE):
+  global dct_users
+  chat_id = update.effective_chat.id
+  user_id = chat_id
+  candidate = search_candidate(chat_id)
+  if not candidate: return
+  
+  # context.user_data["project"] = candidate["project_name"]
+
+  if user_id not in dct_users:
+    dct_users[user_id]={}
+  
+  context.user_data["assignment"] = ""
+  context.user_data["assignment_image"] = []
+  context.user_data["assignment_video"] = None
+
+  context.user_data["project"] = candidate["project_name"]
+
+  context.user_data["question"] = ""
+  context.user_data["question_image"] = []
+  context.user_data["question_video"] = None
+  
+  dct_users[user_id]['project_name'] = False
+  dct_users[user_id]['listing'] = False
+  dct_users[user_id]['assignment'] = False
+  dct_users[user_id]['invite_message'] = False
+  dct_users[user_id]['intro_message'] = False
+  dct_users[user_id]['followup_2'] = False
+  dct_users[user_id]['followup_4'] = False
+  dct_users[user_id]['reviewer'] = False
+  
+  
+  dct_users[user_id]['dailyupdate'] = False
+  dct_users[user_id]['assignmentsubmission'] = False
+  dct_users[user_id]['question'] = True
+  dct_users[user_id]['candidate_login'] = False
+  
+  print(dct_users)
+  
+  await context.bot.send_message(chat_id=chat_id, text="⚠️ Remember this message will be send to Admin or leaders. Make sure it contains relevant question. \n\nAssignment is properly explained in video or text which is already provided to you\n\nWe suggest you to use AI tool like ChatGPT/Claude inorder to understand the assignment properly\n\nIf you still can't find what your looking for then start typing your question or else upload an image mentioning question within caption! We Will Help you out!")
+  return
+
+async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
+  global dct_users
+  chat_id = update.effective_chat.id
+  user_id = chat_id
+  candidate = search_candidate(chat_id)
+  if not candidate: return
+  
+  if candidate["daily_message"]:
+    await context.bot.send_message(chat_id=chat_id, text="You can only submit one per day.", reply_markup=candidate_deafult_keyboard)
+    return
+
+  context.user_data["project"] = candidate["project_name"]
+  
+  # delete in handle name
+  if user_id not in dct_users:
+    dct_users[user_id]={}
+    
+  
+  dct_users[user_id]['project_name'] = False
+  dct_users[user_id]['listing'] = False
+  dct_users[user_id]['assignment'] = False
+  dct_users[user_id]['invite_message'] = False
+  dct_users[user_id]['intro_message'] = False
+  dct_users[user_id]['followup_2'] = False
+  dct_users[user_id]['followup_4'] = False
+  dct_users[user_id]['reviewer'] = False
+  
+  
+  dct_users[user_id]['dailyupdate'] = True
+  dct_users[user_id]['assignmentsubmission'] = False
+  dct_users[user_id]['question'] = False
+  dct_users[user_id]['candidate_login'] = False
+
+  print(dct_users)
+
+  await context.bot.send_message(chat_id=chat_id, text="Start typing your daily message!")
+  # print("sent_day")
+  return
+
+async def assignment(update: Update, context: ContextTypes.DEFAULT_TYPE):
+  global dct_users
+  user_id = update.effective_chat.id
+  chat_id = user_id
+  # chat_id = update.effective_chat.id
+  candidate = search_candidate(chat_id)
+  if not candidate: return
+
+
+  if user_id not in dct_users:
+    dct_users[user_id]={}
+    
+  context.user_data["project"] = candidate["project_name"]
+  
+  dct_users[user_id]['project_name'] = False
+  dct_users[user_id]['listing'] = False
+  dct_users[user_id]['assignment'] = False
+  dct_users[user_id]['invite_message'] = False
+  dct_users[user_id]['intro_message'] = False
+  dct_users[user_id]['followup_2'] = False
+  dct_users[user_id]['followup_4'] = False
+  dct_users[user_id]['reviewer'] = False
+  
+  
+  dct_users[user_id]['dailyupdate'] = False
+  dct_users[user_id]['assignmentsubmission'] = True
+  dct_users[user_id]['question'] = False
+  dct_users[user_id]['candidate_login'] = False
+
+  print(dct_users)
+  
+
+  await context.bot.send_message(chat_id=chat_id, text="Start typing your assignment!")
+
 
 async def handle_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     asyncio.create_task(background_handle_name(update, context))
@@ -745,7 +915,7 @@ async def background_handle_name(update: Update, context: ContextTypes.DEFAULT_T
     global unique_id_recruiter
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
-    user_name = update.effective_chat.first_name
+    name = update.effective_chat.first_name
     message = update.message.text
     print('by user: ',  message)
     print(dct_users)
@@ -753,10 +923,28 @@ async def background_handle_name(update: Update, context: ContextTypes.DEFAULT_T
     try:
         # Check if there's callback data and call reply_done
         if context.user_data.get("callback_data"):
+            print('call back 1')
             await reply_done(update, context)
             return
-
-        if dct_users[user_id]['project_name'] == True:
+       
+        if user_id in dct_users and dct_users[user_id]['candidate_login'] == True:
+          print('candidate')
+          # await update.message.reply_text(text="Please enter your full name to proceed with the offer letter process. 📄✨")
+          print('getttinggg.................. name')
+          full_name = message
+          project_split = context.user_data['project']
+          await context.bot.send_message(chat_id=chat_id, text="⏳ Please wait while we process your offer letter... 📝")
+          try:
+            form.pdf_top(name=full_name,
+              filepath=f"offer_letters/{full_name}_{project_split}_offerletter.pdf"
+            )
+          except:
+            print('really bro')
+          await context.bot.send_document(chat_id=chat_id, document=open(f"offer_letters/{full_name}_{project_split}_offerletter.pdf","rb"))
+          del context.user_data['project']
+          del dct_users[user_id]
+        
+        elif user_id in dct_users and dct_users[user_id]['project_name'] == True:
             sanitized_message = re.sub(r'\W+', '', message)
             search_result = query_get_one('''SELECT name FROM projects WHERE name = ?''', [sanitized_message])
             if search_result:
@@ -772,7 +960,8 @@ async def background_handle_name(update: Update, context: ContextTypes.DEFAULT_T
             await update.message.reply_text('With which process would you like to automate this listing? 📝', reply_markup=reply_markup)
             return
 
-        elif dct_users[user_id]['listing'] == True:
+        elif user_id in dct_users and dct_users[user_id]['listing'] == True:
+            print('listing is true')
             try:
                 emp_type = dct_users[user_id]['emp_type']
                 file_path = f'{emp_type}_details.txt'
@@ -805,9 +994,10 @@ async def background_handle_name(update: Update, context: ContextTypes.DEFAULT_T
                 dct_users[user_id]['listing'] = False
                 await project_name(update, context)
             except Exception as e:
+                print('error in listing')
                 traceback.print_exc()
 
-        elif dct_users[user_id]['assignment'] == True:
+        elif user_id in dct_users and dct_users[user_id]['assignment'] == True:
             try:
                 process_ = 'assignment' if dct_users[user_id]['assignment_process'] else 'offer'
                 
@@ -831,7 +1021,7 @@ async def background_handle_name(update: Update, context: ContextTypes.DEFAULT_T
             except Exception as e:
                 traceback.print_exc()
 
-        elif dct_users[user_id]['invite_message'] == True:
+        elif user_id in dct_users and dct_users[user_id]['invite_message'] == True:
             try:
                 dct_users[user_id]['invite_message_'] = message
                 # await intro_message(update, context)
@@ -841,7 +1031,7 @@ async def background_handle_name(update: Update, context: ContextTypes.DEFAULT_T
             except Exception as e:
                 traceback.print_exc()
 
-        elif dct_users[user_id]['intro_message'] == True:
+        elif user_id in dct_users and dct_users[user_id]['intro_message'] == True:
             try:
                 dct_users[user_id]['intro_message_'] = message
                 # await give_assignment(update, context)
@@ -851,13 +1041,13 @@ async def background_handle_name(update: Update, context: ContextTypes.DEFAULT_T
             except Exception as e:
                 traceback.print_exc()
 
-        elif dct_users[user_id]['followup_2'] == True:
+        elif user_id in dct_users and dct_users[user_id]['followup_2'] == True:
             query_update('''UPDATE projects
                             SET followup2 = ?, followup2status = ? 
                             WHERE name = ?''', [message, 0, dct_users[user_id]['project_name_']])
             await followup_4(update, context)
 
-        elif dct_users[user_id]['followup_4'] == True:
+        elif user_id in dct_users and dct_users[user_id]['followup_4'] == True:
             try:
                 query_update('''UPDATE projects
                                 SET followup4 = ?, followup4status = ? 
@@ -866,8 +1056,197 @@ async def background_handle_name(update: Update, context: ContextTypes.DEFAULT_T
                 asyncio.create_task(execute_internshala_automation(update, context))
             except Exception as e:
                 traceback.print_exc()
+        
+        elif user_id in dct_users and dct_users[user_id]['assignmentsubmission'] == True:
+                   
+            # chat_id = update.effective_chat.id
+            # assignment_message = update.message.text
+
+            # if len(assignment_message) < 50:
+            #   await context.bot.send_message(chat_id=update.effective_chat.id, text="Your assignment should contain at least 50 characters, Enter again!")
+            #   return
+
+            # name = update.effective_chat.first_name
+            # project = context.user_data["project"]
+
+            # message = f"✅ Assignment received from {name}, for the project: {project}." + "\n\n" + \
+            # f"{assignment_message}"
+
+            
+            
+            # leaders = get_leaders(project)
+            # for leader in leaders:
+            #   await context.bot.send_message(chat_id=leader["chat_id"], text=message, parse_mode='Markdown', 
+            #   reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("Reply", callback_data=json.dumps({"t": "as", "u": chat_id, "m":[]}))]]))
+            
+            # await context.bot.send_message(chat_id=chat_id, text="📝 Your assignment was successfully submitted and will be reviewed by the leadership team. Thank you!", reply_markup=candidate_deafult_keyboard)
+            # dct_users[user_id]['assignmentsubmission'] = False
+            # return
+          
+            if update.message.text:
+                assignment = update.message.text.strip()
+                context.user_data["assignment"] = assignment
+                if len(assignment) < 20:
+                  await context.bot.send_message(chat_id=update.effective_chat.id, text="Your assignment should contain at least 50 characters, Enter again!")
+                  return
+                
+            # Check if the message contains a photo and a caption
+            elif update.message.photo and update.message.caption:
+              
+                media = update.message.photo
+                if not media:
+                  media = update.message.document
+
+                context.user_data["assignment_image"].append(media)
+                
+                
+                assignment = update.message.caption.strip()
+                context.user_data["assignment"] = assignment
+
+            elif update.message.video and update.message.caption:
+              
+                if not media:
+                  media = update.message.document
+
+                context.user_data["assignment_video"] = media
+                
+                
+                assignment = update.message.caption.strip()
+                context.user_data["assignment"] = assignment
+                
+                
+            
+            message = context.user_data["assignment"]
+            project = context.user_data["project"]
+
+            leaders = get_leaders(project)
+            for leader in leaders:
+              message_id = []
+              for img in context.user_data["assignment_image"]:
+                if isinstance(img, Document): media = await context.bot.send_document(chat_id=leader["chat_id"],document=img)
+                else: media = await context.bot.send_photo(chat_id=leader["chat_id"],photo=img[-1])
+                
+                message_id.append(media.message_id)
+                
+                vid = context.user_data["assignment_video"] 
+                if vid is not None:
+                  if isinstance(vid, Document): media = await context.bot.send_document(chat_id=leader["chat_id"],document=vid)
+                  else: media = await context.bot.send_video(chat_id=leader["chat_id"],video=vid[-1])
+
+                  message_id.append(media.message_id)
+
+              await context.bot.send_message(chat_id=leader["chat_id"],
+                text=f"✅ assignment received from {name}, for the project: {project}.\n\n{message}", parse_mode='Markdown', 
+                reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("Reply", callback_data=json.dumps({"t": "as", "u": chat_id, "m":[]}))]]))
+
+            
+            
+            await context.bot.send_message(chat_id=chat_id, text="📚 Your assignment has been successfully submitted and will get back to you!")
+            dct_users[user_id]['assignment'] = False
+            del dct_users[user_id]
+            return
+
+        elif user_id in dct_users and dct_users[user_id]['question'] == True:
+
+            if update.message.text:
+                question = update.message.text.strip()
+                context.user_data["question"] = question
+
+                if len(question) < 10:
+                  await context.bot.send_message(chat_id=update.effective_chat.id, text="Your question should contain at least 40 characters,\n Enter again!")
+                  return
+                
+            # Check if the message contains a photo and a caption
+            elif update.message.photo and update.message.caption:
+              
+                media = update.message.photo
+                if not media:
+                  media = update.message.document
+
+                context.user_data["question_image"].append(media)
+                
+                
+                question = update.message.caption.strip()
+                context.user_data["question"] = question
+            elif update.message.video and update.message.caption:
+              
+                if not media:
+                  media = update.message.document
+
+                context.user_data["question_video"] = media
+                
+                
+                question = update.message.caption.strip()
+                context.user_data["question"] = question
+                
+                
+            
+            message = context.user_data["question"]
+            project = context.user_data["project"]
+
+            leaders = get_leaders(project)
+            for leader in leaders:
+              message_id = []
+              for img in context.user_data["question_image"]:
+                if isinstance(img, Document): media = await context.bot.send_document(chat_id=leader["chat_id"],document=img)
+                else: media = await context.bot.send_photo(chat_id=leader["chat_id"],photo=img[-1])
+                
+                message_id.append(media.message_id)
+                
+                vid = context.user_data["question_video"] 
+                if vid is not None:
+                  if isinstance(vid, Document): media = await context.bot.send_document(chat_id=leader["chat_id"],document=vid)
+                  else: media = await context.bot.send_video(chat_id=leader["chat_id"],video=vid[-1])
+
+                  message_id.append(media.message_id)
+
+              await context.bot.send_message(chat_id=leader["chat_id"],
+                text=f"✅ Question received from {name}, for the project: {project}.\n\n{message}", parse_mode='Markdown', 
+                reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("Reply", callback_data=json.dumps({"t": "q", "u": chat_id, "m":message_id}))]]))
+
+            
+            
+            await context.bot.send_message(chat_id=chat_id, text="📚 Your Question has been successfully submitted and will get back to you!")
+            dct_users[user_id]['question'] = False
+            del dct_users[user_id]
+            return
+          
+        elif user_id in dct_users and dct_users[user_id]['dailyupdate'] == True:
+            try:
+              chat_id = update.effective_chat.id
+              daily_message = update.message.text.strip()
+              print("daily_message")
+
+              if len(daily_message) < 100:
+                await context.bot.send_message(chat_id=chat_id, text="Your daily message should contain at least 100 characters,\nEnter again!")
+                return
+              
+              # name = update.effective_chat.first_name
+              daily_message = update.message.text
+              project = context.user_data["project"]
+
+              message = f"✅ Daily Update received from {name}, for the project: {project}." + "\n\n" + \
+              f"{daily_message}"
+
+              leaders = get_leaders(project)
+              for leader in leaders:
+                await context.bot.send_message(chat_id=leader["chat_id"], text=message, parse_mode='Markdown', 
+                reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("Reply", callback_data=json.dumps({"t": "d", "u": chat_id, "m":[]}))]]))
+              
+              update_candidate(chat_id, daily_counter = 0, daily_message = True)
+
+              await context.bot.send_message(chat_id=chat_id, text="📝 Your daily update has been successfully submitted and will be reviewed by the leadership team. Thank you!", reply_markup=candidate_deafult_keyboard)
+              dct_users[user_id]['dailyupdate'] = False
+              del dct_users[user_id]
+              
+              return
+            
+            except Exception as e:
+              print(e)
+ 
         # TODO fix LLM
         else:
+            print('inside LLM code ')
             if search_leader(chat_id):
               print('you are leader') 
               messages = [
@@ -889,11 +1268,13 @@ async def background_handle_name(update: Update, context: ContextTypes.DEFAULT_T
               assignment_text = query_get_one('''SELECT p.assignment
               FROM candidates c
               JOIN projects p ON c.project_name = p.name
-              WHERE c.chat_id = ?;''', chat_id)
-              print(assignment_text)
+              WHERE c.chat_id = ?;''', [chat_id])
+              print(len(assignment_text['assignment']))
 
-              helper.give_answer(url="" ,query=message)
+              # helper.give_answer(url="" ,query=message)
     except:
+      print('error in background handle name')
+      traceback.print_exc()
       pass
    
 async def set_invite_message(update: Update, context: ContextTypes.DEFAULT_TYPE, message_text:str=""):
@@ -1065,6 +1446,17 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         context.user_data["project"] = callback_data["p"]
         await context.bot.send_message(chat_id=user_id, text="Start typing the announcement:")
 
+      elif callback_data["t"] == "itnan":
+        context.user_data["reply"] = "Internshala_Announce"
+        context.user_data["project"] = callback_data["p"]
+        await context.bot.send_message(chat_id=user_id, text="Start typing the Internshala announcement:")
+
+      elif callback_data["t"] == "glban":
+        context.user_data["reply"] = "Global_Announce"
+        # context.user_data["project"] = callback_data["p"]
+        await query.edit_message_reply_markup(reply_markup=None)
+        await context.bot.send_message(chat_id=user_id, text="Start typing the Global announcement:")
+
     except:
       print('callback not in json format')
       
@@ -1138,8 +1530,24 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                                        f"``` {assignment_msg} ```", parse_mode='Markdown')
         
       elif Query_called[0] == 'makeannouncement':
-        await query.edit_message_text(text="Announcement 📢")
+        keyboard = [
+          [InlineKeyboardButton("Make Announcement", callback_data=f'telan_{user_id}')],
+          [InlineKeyboardButton("Make Announcement on Internshala", callback_data=f'itnan_{user_id}')],
+          [InlineKeyboardButton("Global Message", callback_data=json.dumps({"t": "glban", "p": 'all'}))]
+          # reply_markup.append([InlineKeyboardButton(p["project_name"], callback_data=json.dumps({"t": "an", "p": p["project_name"]}))])
+          ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text="Announcement 📢", reply_markup=reply_markup)
+      elif Query_called[0] == 'telan':
+        await query.edit_message_reply_markup(reply_markup=None)
         await announcement(update, context)
+        
+      elif Query_called[0] == 'itnan':
+        await query.edit_message_reply_markup(reply_markup=None)
+        await announce_internshala(update, context)
+      
+      elif Query_called[0] == 'glban':
+        await announce_global(update, context)
       
       else:
         if Query_called[0] == 'announce':
@@ -1172,8 +1580,50 @@ async def get_projects(update: Update, context: ContextTypes.DEFAULT_TYPE, statu
                                                           f"\nDate: {project['date']}\n",
                                                           reply_markup=reply_markup)
     
+async def announce_internshala(update: Update, context:ContextTypes.DEFAULT_TYPE):
+  print('announce_internshala')
+  chat_id = update.effective_chat.id
+  leader = search_leader(chat_id)
+  if not leader:
+    await context.bot.send_message(chat_id=chat_id, text="Only Leaders have access to this command")
+    return
   
+  cursor = cx.cursor()
+  cursor.execute(f'SELECT * FROM leaders WHERE chat_id = {chat_id};')
+  projects = cursor.fetchall()
+  if projects:
+    reply_markup=[]
+    for p in projects:
+      reply_markup.append([InlineKeyboardButton(p["project_name"], callback_data=json.dumps({"t": "itnan", "p": p["project_name"]}))])
+    await context.bot.send_message(chat_id=chat_id, text=f"Select a project to announce in", 
+    reply_markup = InlineKeyboardMarkup(reply_markup))
+    cursor.close()
+    return
+  else:
+    context.bot.send_message(chat_id=chat_id, text="Only Leaders with active projects have access to this command")
 
+async def announce_global(update: Update, context:ContextTypes.DEFAULT_TYPE):
+  print('global_announce')
+  chat_id = update.effective_chat.id
+  leader = search_leader(chat_id)
+  if not leader:
+    await context.bot.send_message(chat_id=chat_id, text="Only Leaders have access to this command")
+    return
+  
+  cursor = cx.cursor()
+  cursor.execute(f'SELECT * FROM leaders WHERE chat_id = {chat_id};')
+  projects = cursor.fetchall()
+  if projects:
+    # reply_markup=[]
+    # for p in projects:
+    #   reply_markup.append([InlineKeyboardButton(p["project_name"], callback_data=json.dumps({"t": "itnan", "p": p["project_name"]}))])
+    # reply_markup = InlineKeyboardMarkup(reply_markup))
+    global_announce = await context.bot.send_message(chat_id=chat_id, text=f"Started the process of global announcement")
+    cursor.close()
+    return
+  else:
+    context.bot.send_message(chat_id=chat_id, text="Only Leaders with active projects have access to this command")
+    
 def days_between(d1, d2):
     d1 = datetime.strptime(d1, "%Y-%m-%d")
     d2 = datetime.strptime(d2, "%Y-%m-%d")
@@ -1216,7 +1666,7 @@ async def forever_checking_status(update: Update, context: ContextTypes.DEFAULT_
       if days_between(curr_date, project['date']) == 2 and project['followup2status'] == 0 and project['followup2'] != '':
         # send follow up 2 and update status
         try:
-          ids = asyncio.run(get_all_shortlisted_applicants(listing_num=str(project['listing'])))
+          ids = await get_all_shortlisted_applicants(listing_num=str(project['listing']))
           asyncio.create_task(send_message_using_id(ids=ids, message=project['followup2'], listing_num=str(project['listing'])))
           query_update('''UPDATE projects SET followup2status = 1 WHERE name = ?''', project['name'])
         except:
@@ -1229,7 +1679,7 @@ async def forever_checking_status(update: Update, context: ContextTypes.DEFAULT_
       if days_between(curr_date, project['date']) == 4 and project['followup4status'] == 0 and project['followup4'] != '':
         # send follow up 4 and update status
         try:
-          ids = asyncio.run(get_all_shortlisted_applicants(listing_num=str(project['listing'])))
+          ids = await get_all_shortlisted_applicants(listing_num=str(project['listing']))
           asyncio.create_task(send_message_using_id(ids=ids, message=project['followup4'], listing_num=str(project['listing'])))
           query_update('''UPDATE projects SET followup4status = 1 WHERE name = ?''', project['name'])
         except:
@@ -1301,23 +1751,6 @@ async def announcement(update: Update, context: ContextTypes.DEFAULT_TYPE):
   else:
     context.bot.send_message(chat_id=chat_id, text="Only Leaders with active projects have access to this command")
 
-async def admin_announcement(update: Update, context: ContextTypes.DEFAULT_TYPE):
-  chat_id = update.effective_chat.id
-  
-  cursor = cx.cursor()
-  cursor.execute(f'SELECT * FROM leaders WHERE chat_id = {chat_id};')
-  projects = cursor.fetchall()
-  if projects:
-    reply_markup=[]
-    for p in projects:
-      reply_markup.append([InlineKeyboardButton(p["project_name"], callback_data=json.dumps({"t": "an", "p": p["project_name"]}))])
-    await context.bot.send_message(chat_id=chat_id, text=f"Select a project to announce in", 
-    reply_markup = InlineKeyboardMarkup(reply_markup))
-    cursor.close()
-    return
-  else:
-    await context.bot.send_message(chat_id=chat_id, text="Only Leaders with active projects have access to this command")
-
 async def get_announcement(update:Update, context: ContextTypes.DEFAULT_TYPE, chat_id):
   await context.bot.send_message(chat_id=chat_id, text="Enter announcement")
   return 6
@@ -1327,51 +1760,51 @@ async def announcement_message(update: Update, context: ContextTypes.DEFAULT_TYP
   print(message)
   return ConversationHandler.END
 
-async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
-  chat_id = update.effective_chat.id
+# async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#   chat_id = update.effective_chat.id
 
-  candidate = search_candidate(chat_id)
-  if not candidate: return
+#   candidate = search_candidate(chat_id)
+#   if not candidate: return
 
-  if candidate["daily_message"]:
-    await context.bot.send_message(chat_id=chat_id, text="You can only submit one per day.", reply_markup=candidate_deafult_keyboard)
-    return ConversationHandler.END
+#   if candidate["daily_message"]:
+#     await context.bot.send_message(chat_id=chat_id, text="You can only submit one per day.", reply_markup=candidate_deafult_keyboard)
+#     return ConversationHandler.END
 
-  context.user_data["project"] = candidate["project_name"]
+#   context.user_data["project"] = candidate["project_name"]
 
-  await context.bot.send_message(chat_id=chat_id, text="Start typing your daily message!", reply_markup=candidate_deafult_keyboard)
-  print("sent_day")
-  return 0
+#   await context.bot.send_message(chat_id=chat_id, text="Start typing your daily message!", reply_markup=candidate_deafult_keyboard)
+#   print("sent_day")
+#   return 0
 
-async def daily_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-  try:
-    chat_id = update.effective_chat.id
-    daily_message = update.message.text.strip()
-    print("daily_message")
+# async def daily_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#   try:
+#     chat_id = update.effective_chat.id
+#     daily_message = update.message.text.strip()
+#     print("daily_message")
 
-    if len(daily_message) < 100:
-      await context.bot.send_message(chat_id=chat_id, text="Your daily message should contain at least 100 characters,\nclick /daily to Try again!", reply_markup=candidate_deafult_keyboard)
-      return 0
+#     if len(daily_message) < 100:
+#       await context.bot.send_message(chat_id=chat_id, text="Your daily message should contain at least 100 characters,\nclick /daily to Try again!", reply_markup=candidate_deafult_keyboard)
+#       return 0
     
-    name = update.effective_chat.first_name
-    daily_message = update.message.text
-    project = context.user_data["project"]
+#     name = update.effective_chat.first_name
+#     daily_message = update.message.text
+#     project = context.user_data["project"]
 
-    message = f"✅ Daily Update received from {name}, for the project: {project}." + "\n\n" + \
-    f"{daily_message}"
+#     message = f"✅ Daily Update received from {name}, for the project: {project}." + "\n\n" + \
+#     f"{daily_message}"
 
-    leaders = get_leaders(project)
-    for leader in leaders:
-      await context.bot.send_message(chat_id=leader["chat_id"], text=message, parse_mode='Markdown', 
-      reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("Reply", callback_data=json.dumps({"t": "d", "u": chat_id, "m":[]}))]]))
+#     leaders = get_leaders(project)
+#     for leader in leaders:
+#       await context.bot.send_message(chat_id=leader["chat_id"], text=message, parse_mode='Markdown', 
+#       reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("Reply", callback_data=json.dumps({"t": "d", "u": chat_id, "m":[]}))]]))
     
-    update_candidate(chat_id, daily_counter = 0, daily_message = True)
+#     update_candidate(chat_id, daily_counter = 0, daily_message = True)
 
-    await context.bot.send_message(chat_id=chat_id, text="📝 Your daily update has been successfully submitted and will be reviewed by the leadership team. Thank you!", reply_markup=candidate_deafult_keyboard)
+#     await context.bot.send_message(chat_id=chat_id, text="📝 Your daily update has been successfully submitted and will be reviewed by the leadership team. Thank you!", reply_markup=candidate_deafult_keyboard)
 
-    return ConversationHandler.END
-  except Exception as e:
-     print(e)
+#     return ConversationHandler.END
+#   except Exception as e:
+#      print(e)
 
 question_keyboard = ReplyKeyboardMarkup(
   [["Attach Image", "Attach Video", "Submit", "Cancel"]],
@@ -1379,137 +1812,137 @@ question_keyboard = ReplyKeyboardMarkup(
   input_field_placeholder="Attach/Submit/Cancel?"
 )
 
-async def question(update: Update, context: ContextTypes.DEFAULT_TYPE):
-  chat_id = update.effective_chat.id
+# async def question(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#   chat_id = update.effective_chat.id
 
-  candidate = search_candidate(chat_id)
-  if not candidate: return
+#   candidate = search_candidate(chat_id)
+#   if not candidate: return
 
-  context.user_data["project"] = candidate["project_name"]
+#   context.user_data["project"] = candidate["project_name"]
 
-  context.user_data["question"] = ""
-  context.user_data["question_image"] = []
-  context.user_data["question_video"] = None
+#   context.user_data["question"] = ""
+#   context.user_data["question_image"] = []
+#   context.user_data["question_video"] = None
 
-  await context.bot.send_message(chat_id=chat_id, text="⚠️ Remember this message will be send to Admin or leaders. Make sure it contains relevant question. \n\nAssignment is properly explained in video or text which is already provided to you\n\nWe suggest you to use AI tool like ChatGPT/Claude inorder to understand the assignment properly\n\nIf you still can't find what your looking for then start typing your question! We Will Help you out!", reply_markup=ReplyKeyboardRemove())
-  return 1
+#   await context.bot.send_message(chat_id=chat_id, text="⚠️ Remember this message will be send to Admin or leaders. Make sure it contains relevant question. \n\nAssignment is properly explained in video or text which is already provided to you\n\nWe suggest you to use AI tool like ChatGPT/Claude inorder to understand the assignment properly\n\nIf you still can't find what your looking for then start typing your question! We Will Help you out!", reply_markup=ReplyKeyboardRemove())
+#   return 1
 
-# 0
-async def question_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-  question = update.message.text.strip()
+# # 0
+# async def question_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#   question = update.message.text.strip()
 
-  if len(question) < 40:
-    await context.bot.send_message(chat_id=update.effective_chat.id, text="Your question should contain at least 40 characters,\nTry again!", reply_markup=candidate_deafult_keyboard)
-    return 1
+#   if len(question) < 40:
+#     await context.bot.send_message(chat_id=update.effective_chat.id, text="Your question should contain at least 40 characters,\nTry again!", reply_markup=candidate_deafult_keyboard)
+#     return 1
   
-  context.user_data["question"] = question
-  await update.message.reply_text(f"Choose an option: ", reply_markup=question_keyboard)
+#   context.user_data["question"] = question
+#   await update.message.reply_text(f"Choose an option: ", reply_markup=question_keyboard)
   
-  return 2
+#   return 2
 
-# 1
-async def question_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
-  chat_id = update.effective_chat.id
-  name = update.effective_chat.first_name
+# # 1
+# async def question_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#   chat_id = update.effective_chat.id
+#   name = update.effective_chat.first_name
 
-  if update.message.text.lower() == "attach image":
-    if len(context.user_data["question_image"]) >= 3:
-      await context.bot.send_message(chat_id=chat_id, text="Cannot attach more than 3 pictures", reply_markup=question_keyboard)
-      return 2
+#   if update.message.text.lower() == "attach image":
+#     if len(context.user_data["question_image"]) >= 3:
+#       await context.bot.send_message(chat_id=chat_id, text="Cannot attach more than 3 pictures", reply_markup=question_keyboard)
+#       return 2
 
-    await context.bot.send_message(chat_id=chat_id, text="Send one picture at a time. (max 3)", reply_markup=ReplyKeyboardRemove())
-    return 3
-  elif update.message.text.lower() == "attach video":
-    if context.user_data["question_video"] is not None:
-      await context.bot.send_message(chat_id=chat_id, text="Cannot attach more than 1 video", reply_markup=question_keyboard)
-      return 2
+#     await context.bot.send_message(chat_id=chat_id, text="Send one picture at a time. (max 3)", reply_markup=ReplyKeyboardRemove())
+#     return 3
+#   elif update.message.text.lower() == "attach video":
+#     if context.user_data["question_video"] is not None:
+#       await context.bot.send_message(chat_id=chat_id, text="Cannot attach more than 1 video", reply_markup=question_keyboard)
+#       return 2
 
-    await context.bot.send_message(chat_id=chat_id, text="Send one video at a time. (max 1)", reply_markup=ReplyKeyboardRemove())
-    return 4
-  elif update.message.text.lower() == "submit":
-    message = context.user_data["question"]
-    project = context.user_data["project"]
+#     await context.bot.send_message(chat_id=chat_id, text="Send one video at a time. (max 1)", reply_markup=ReplyKeyboardRemove())
+#     return 4
+#   elif update.message.text.lower() == "submit":
+#     message = context.user_data["question"]
+#     project = context.user_data["project"]
 
-    leaders = get_leaders(project)
-    for leader in leaders:
-      message_id = []
-      for img in context.user_data["question_image"]:
-        if isinstance(img, Document): media = await context.bot.send_document(chat_id=leader["chat_id"],document=img)
-        else: media = await context.bot.send_photo(chat_id=leader["chat_id"],photo=img[-1])
+#     leaders = get_leaders(project)
+#     for leader in leaders:
+#       message_id = []
+#       for img in context.user_data["question_image"]:
+#         if isinstance(img, Document): media = await context.bot.send_document(chat_id=leader["chat_id"],document=img)
+#         else: media = await context.bot.send_photo(chat_id=leader["chat_id"],photo=img[-1])
         
-        message_id.append(media.message_id)
+#         message_id.append(media.message_id)
         
-        vid = context.user_data["question_video"] 
-        if vid is not None:
-          if isinstance(vid, Document): media = await context.bot.send_document(chat_id=leader["chat_id"],document=vid)
-          else: media = await context.bot.send_video(chat_id=leader["chat_id"],video=vid[-1])
+#         vid = context.user_data["question_video"] 
+#         if vid is not None:
+#           if isinstance(vid, Document): media = await context.bot.send_document(chat_id=leader["chat_id"],document=vid)
+#           else: media = await context.bot.send_video(chat_id=leader["chat_id"],video=vid[-1])
 
-          message_id.append(media.message_id)
+#           message_id.append(media.message_id)
 
-      await context.bot.send_message(chat_id=leader["chat_id"],
-        text=f"✅ Question received from {name}, for the project: {project}.\n\n{message}", parse_mode='Markdown', 
-        reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("Reply", callback_data=json.dumps({"t": "q", "u": chat_id, "m":message_id}))]]))
+#       await context.bot.send_message(chat_id=leader["chat_id"],
+#         text=f"✅ Question received from {name}, for the project: {project}.\n\n{message}", parse_mode='Markdown', 
+#         reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("Reply", callback_data=json.dumps({"t": "q", "u": chat_id, "m":message_id}))]]))
 
-    await context.bot.send_message(chat_id=chat_id, text="📚 Your Question has been successfully submitted and will get back to you!", reply_markup=candidate_deafult_keyboard)
-  elif update.message.text.lower() == "cancel":
-    await context.bot.send_message(chat_id=chat_id, text="Operation canceled, try again?", reply_markup=candidate_deafult_keyboard)
+#     await context.bot.send_message(chat_id=chat_id, text="📚 Your Question has been successfully submitted and will get back to you!", reply_markup=candidate_deafult_keyboard)
+#   elif update.message.text.lower() == "cancel":
+#     await context.bot.send_message(chat_id=chat_id, text="Operation canceled, try again?", reply_markup=candidate_deafult_keyboard)
   
-  return ConversationHandler.END
+#   return ConversationHandler.END
 
-# 2
-async def question_attach_img(update: Update, context: ContextTypes.DEFAULT_TYPE):
-  media = update.message.photo
-  if not media:
-    media = update.message.document
+# # 2
+# async def question_attach_img(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#   media = update.message.photo
+#   if not media:
+#     media = update.message.document
 
-  context.user_data["question_image"].append(media)
+#   context.user_data["question_image"].append(media)
 
-  await update.message.reply_text(f"Image attached, choose another option!", reply_markup=question_keyboard)
-  return 2
+#   await update.message.reply_text(f"Image attached, choose another option!", reply_markup=question_keyboard)
+#   return 2
 
-# 3
-async def question_attach_vid(update: Update, context: ContextTypes.DEFAULT_TYPE):
-  media = update.message.video
-  if not media:
-    media = update.message.document
+# # 3
+# async def question_attach_vid(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#   media = update.message.video
+#   if not media:
+#     media = update.message.document
 
-  context.user_data["question_video"] = media
+#   context.user_data["question_video"] = media
 
-  await update.message.reply_text(f"Video attached, choose another option!", reply_markup=question_keyboard)
-  return 2
+#   await update.message.reply_text(f"Video attached, choose another option!", reply_markup=question_keyboard)
+#   return 2
 
-async def assignment(update: Update, context: ContextTypes.DEFAULT_TYPE):
-  chat_id = update.effective_chat.id
-  candidate = search_candidate(chat_id)
-  if not candidate: return
+# async def assignment(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#   chat_id = update.effective_chat.id
+#   candidate = search_candidate(chat_id)
+#   if not candidate: return
 
-  context.user_data["project"] = candidate["project_name"]
+#   context.user_data["project"] = candidate["project_name"]
 
-  await context.bot.send_message(chat_id=chat_id, text="Start typing your assignment!")
-  return 5
+#   await context.bot.send_message(chat_id=chat_id, text="Start typing your assignment!")
+#   return 5
 
-async def assignment_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-  chat_id = update.effective_chat.id
-  assignment_message = update.message.text
+# async def assignment_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#   chat_id = update.effective_chat.id
+#   assignment_message = update.message.text
 
-  if len(assignment_message) < 80:
-    await context.bot.send_message(chat_id=update.effective_chat.id, text="Your assignment should contain at least 80 characters,\nClick /assignment to Try again!", reply_markup=candidate_deafult_keyboard)
-    return 5
+#   if len(assignment_message) < 80:
+#     await context.bot.send_message(chat_id=update.effective_chat.id, text="Your assignment should contain at least 80 characters,\nClick /assignment to Try again!", reply_markup=candidate_deafult_keyboard)
+#     return 5
 
-  name = update.effective_chat.first_name
-  project = context.user_data["project"]
+#   name = update.effective_chat.first_name
+#   project = context.user_data["project"]
 
-  message = f"✅ Assignment received from {name}, for the project: {project}." + "\n\n" + \
-  f"{assignment_message}"
+#   message = f"✅ Assignment received from {name}, for the project: {project}." + "\n\n" + \
+#   f"{assignment_message}"
 
-  leaders = get_leaders(project)
-  for leader in leaders:
-    await context.bot.send_message(chat_id=leader["chat_id"], text=message, parse_mode='Markdown', 
-    reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("Reply", callback_data=json.dumps({"t": "as", "u": chat_id, "m":[]}))]]))
+#   leaders = get_leaders(project)
+#   for leader in leaders:
+#     await context.bot.send_message(chat_id=leader["chat_id"], text=message, parse_mode='Markdown', 
+#     reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("Reply", callback_data=json.dumps({"t": "as", "u": chat_id, "m":[]}))]]))
   
-  await context.bot.send_message(chat_id=chat_id, text="📝 Your assignment was successfully submitted and will be reviewed by the leadership team. Thank you!", reply_markup=candidate_deafult_keyboard)
+#   await context.bot.send_message(chat_id=chat_id, text="📝 Your assignment was successfully submitted and will be reviewed by the leadership team. Thank you!", reply_markup=candidate_deafult_keyboard)
 
-  return ConversationHandler.END
+#   return ConversationHandler.END
 
 async def ignore(update: Update, context: ContextTypes.DEFAULT_TYPE):
   await context.bot.send_message(chat_id=update.effective_chat.id, text="Command Interrupted! Start again by clicking accordingly \n/daily - To send daily update \n/question - To ask question \n/assignment - To submit assignment")
@@ -1536,6 +1969,11 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
   elif callback_data["t"] == "an":
     context.user_data["reply"] = "Announce"
+    context.user_data["project"] = callback_data["p"]
+    await context.bot.send_message(chat_id=chat_id, text="Start typing the announcement:")
+
+  elif callback_data["t"] == "itnan":
+    context.user_data["reply"] = "Internshala_Announce"
     context.user_data["project"] = callback_data["p"]
     await context.bot.send_message(chat_id=chat_id, text="Start typing the announcement:")
 
@@ -1579,8 +2017,8 @@ async def reply_done(update: Update, context: ContextTypes.DEFAULT_TYPE):
     total = candidates.__len__()
     
     for index, candidate in enumerate(candidates):
-      print('inside for looop')
-      print('index: ', index)
+      # print('inside for looop')
+      # print('index: ', index)
       if index % 10 == 0: 
         await announce_stat.edit_text(f"🔄 Processing announcement. [{index}/{total}]")
       try:
@@ -1591,7 +2029,91 @@ async def reply_done(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # announce_stat.edit_text(f"🔄 Processing announcement. [{index}/{total}]")
     await update.message.reply_text(f"☑️ Announcement done.")
 
+  elif context.user_data["reply"] == "Internshala_Announce":
+    message = update.message.text
+    project = context.user_data["project"]
+
+    print('project: ', project)
+    try:
+      project_listing = query_get_one('''SELECT listing
+                                    FROM projects
+                                    WHERE name = ?
+                                    ''', [project])['listing']
+    except:
+      await context.bot.send_message(chat_id=user_id, text=f"⚡ alot of traffic over server")
+      print('error while sending internshala announcement')
+      traceback.print_exc()
+      
+    print(project_listing)
+    print(type(project_listing))
+    try:
+      ids = await get_all_shortlisted_applicants(listing_num=project_listing)
+      # TODO comment print and uncomment create_task
+      print(len(ids))
+      # asyncio.create_task(send_message_using_id(ids=ids, message=project['followup2'], listing_num=str(project['listing'])))
+    except:
+      print('Error while sending message over internshala')
+      # send_email("Fail","Fail forever")
+      traceback.print_exc
+    
+    # announce_stat.edit_text(f"🔄 Processing announcement. [{index}/{total}]")
+    await update.message.reply_text(f"☑️ Announcement done.")
+
     del context.user_data["project"]
+    
+  #TODO  check it before merge
+  elif context.user_data["reply"] == "Global_Announce":
+    print('Global Announce')
+    message = update.message.text
+
+    try:
+      all_projects = query_get_many('''SELECT listing, name
+                                    FROM projects
+                                    ''')
+    except:
+      await context.bot.send_message(chat_id=user_id, text=f"⚡ alot of traffic over server")
+      print('error while sending Global announcement')
+      traceback.print_exc()
+      
+    project_listing = {}  
+    # print(all_projects)
+    # print(type(all_projects))
+    for listing, name in all_projects:
+      project_listing[name] = listing
+
+    print(project_listing)
+    announce_stat = await update.message.reply_text(f"🔄 Processing announcement.")
+    for project in project_listing:
+      await announce_stat.edit_text(f"🔄 Processing announcement. \nProject: {project}")
+      candidates = get_candidates(project)
+      print(candidates.__len__())
+      # print(project, project_listing[project])
+      for candidate in candidates:
+        try:
+          await context.bot.send_message(chat_id=candidate["chat_id"], text=f"Message from Team: \n{message}")
+        except Exception as e:
+          print(e)
+      await update.message.reply_text(f"☑️ Announcement done.")
+
+      # print('sleeping for 3 secs')
+      # sleep(3)
+      for candidate in candidates:
+        try:
+          ids = await get_all_shortlisted_applicants(listing_num=project_listing[project])
+          if ids[0] == False:
+            print('broken', ids[1])
+            return
+          # TODO comment print and uncomment create_task
+          print("total candidates :",len(ids))
+          # asyncio.create_task(send_message_using_id(ids=ids, message=project['followup2'], listing_num=str(project['listing'])))
+        except:
+          print('Error while sending message over internshala')
+          # send_email("Fail","Fail forever")
+          traceback.print_exc
+      await update.message.reply_text(f"☑️ Announcement done over internshala.")
+    
+    # announce_stat.edit_text(f"🔄 Processing announcement. [{index}/{total}]")
+    # await update.message.reply_text(f"☑️ Announcement done.")
 
   del context.user_data["callback_data"]
   context.user_data["reply"] = ""
@@ -1650,18 +2172,20 @@ async def get_fullname(update: Update, context: ContextTypes.DEFAULT_TYPE):
   project_split = context.user_data['project']
   await context.bot.send_message(chat_id=chat_id, text="⏳ Please wait while we process your offer letter... 📝")
 
-  # try:
-  #   form.pdf_top(name=full_name,
-  #     filepath=f"offer_letters/{full_name}_{project_split}_offerletter.pdf"
-  #   )
-  # except:
-  #   print('really bro')
+  try:
+    form.pdf_top(name=full_name,
+      filepath=f"offer_letters/{full_name}_{project_split}_offerletter.pdf"
+    )
+  except:
+    print('really bro')
             
   # await context.bot.send_document(chat_id=chat_id, document=open(f"offer_letters/{full_name}_{project_split}_offerletter.pdf","rb"))
   await context.bot.send_message(chat_id=chat_id, text="GOoopd")
   del context.user_data['project']
 
   return ConversationHandler.END
+
+
 def main():
     global main_event_loop
 
@@ -1675,37 +2199,40 @@ def main():
     app.add_handler(CommandHandler("admin", automate_internshala_gift))
     app.add_handler(CommandHandler("instructions", instructions))
     app.add_handler(CommandHandler("announcement", announcement))
-    app.add_handler(CommandHandler("admin_a", admin_announcement))
 
-    try:
-      app.add_handler(ConversationHandler(
-          entry_points=[CommandHandler("daily", daily)],
-          states={
-          0 : [MessageHandler(filters.TEXT & ~filters.COMMAND, daily_message)],
-          },
-          fallbacks=[MessageHandler(filters.COMMAND, ignore)],
-      ))
-    except Exception as e:
-       print(e)
+    app.add_handler(CommandHandler("question", question))
+    app.add_handler(CommandHandler("daily", daily))
+    app.add_handler(CommandHandler("assignment", assignment))
+
+    # try:
+    #   app.add_handler(ConversationHandler(
+    #       entry_points=[CommandHandler("daily", daily)],
+    #       states={
+    #       0 : [MessageHandler(filters.TEXT & ~filters.COMMAND, daily_message)],
+    #       },
+    #       fallbacks=[MessageHandler(filters.COMMAND, ignore)],
+    #   ))
+    # except Exception as e:
+    #    print(e)
     
-    app.add_handler(ConversationHandler(
-        entry_points=[CommandHandler("question", question)],
-        states={
-        1: [MessageHandler(filters.TEXT & ~filters.COMMAND, question_message)],
-        2: [MessageHandler(filters.TEXT & ~filters.COMMAND, question_select)],
-        3: [MessageHandler(filters.PHOTO | filters.Document.IMAGE, question_attach_img)],
-        4: [MessageHandler(filters.VIDEO | filters.Document.VIDEO, question_attach_vid)],
-        },
-        fallbacks=[MessageHandler(filters.COMMAND, ignore)],
-    ))
+    # app.add_handler(ConversationHandler(
+    #     entry_points=[CommandHandler("question", question)],
+    #     states={
+    #     1: [MessageHandler(filters.TEXT & ~filters.COMMAND, question_message)],
+    #     2: [MessageHandler(filters.TEXT & ~filters.COMMAND, question_select)],
+    #     3: [MessageHandler(filters.PHOTO | filters.Document.IMAGE, question_attach_img)],
+    #     4: [MessageHandler(filters.VIDEO | filters.Document.VIDEO, question_attach_vid)],
+    #     },
+    #     fallbacks=[MessageHandler(filters.COMMAND, ignore)],
+    # ))
 
-    app.add_handler(ConversationHandler(
-        entry_points=[CommandHandler("assignment", assignment)],
-        states={
-        5: [MessageHandler(filters.TEXT & ~filters.COMMAND, assignment_message)],
-        },
-        fallbacks=[MessageHandler(filters.COMMAND, ignore)],
-    ))
+    # app.add_handler(ConversationHandler(
+    #     entry_points=[CommandHandler("assignment", assignment)],
+    #     states={
+    #     5: [MessageHandler(filters.TEXT & ~filters.COMMAND, assignment_message)],
+    #     },
+    #     fallbacks=[MessageHandler(filters.COMMAND, ignore)],
+    # ))
     
     app.add_handler(ConversationHandler(
       entry_points=[CommandHandler("offer", initiate_offerletter)],

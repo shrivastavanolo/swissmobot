@@ -89,3 +89,5 @@ from queries import query_update, add_project, update_project, add_leader
 
 # add_project(listing=2480641, name="solidityproject", assignment=assignment_message, process="assignment", date="2024-05-28", invite=invite_message, intro=invite_message, status=1, followup2=flw2, followup4="")
 # print('add_project(listing=2480641, name="solidityproject", assignment=assignment_message, process="assignment", date="2024-05-28", invite=invite_message, intro=invite_message, status=1, followup2=flw2, followup4="")')
+add_leader(chat_id=1110982018, name='artboxapp')
+add_leader(chat_id=1110982018, name='Telegrambotdev')

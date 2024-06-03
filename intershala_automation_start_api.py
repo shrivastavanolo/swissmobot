@@ -406,6 +406,7 @@ async def get_all_shortlisted_applicants(listing_num: str):
         else:
             print(f"Failed to update status: HTTP {response.status_code}, Response: {response.text}")
             print(f"error while getitng ids of all shortlisted applicants 'from else' ")
+            return False, response.status_code
         
         # print(len(ids))            
         # Successfully getting Id of everyone who's shortlisted
@@ -414,6 +415,7 @@ async def get_all_shortlisted_applicants(listing_num: str):
     except:
         print(f"error while getitng ids of all shortlisted applicants")
         traceback.print_exc()
+        return False
         
 async def send_assignment_to_all_shortlisted(ids:list, listing_num:str, assignment:str):
     print('sending assignment')
